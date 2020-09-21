@@ -115,24 +115,33 @@ class Conditional_Contrastive_loss(torch.nn.Module):
         return v
 
     def forward(self, inst_embed, proxy, negative_mask, labels, temperature, margin):
-        similarity_matrix = self.calculate_similarity_matrix(inst_embed, inst_embed)
-        instance_zone = self.remove_diag(similarity_matrix)
+        num_samples = len(inst_embed)
+        representations = torch.cat([inst_embed, proxy], dim=0)
+        similarity_matrix = self.calculate_similarity_matrix(representations, representations)
+        instance_zone = self.remove_diag(similarity_matrix[:num_samples, :num_samples])
+        inst2proxy_zone = self.remove_diag(similarity_matrix[:num_samples, num_samples:])
 
         mask_4_remove_negatives = negative_mask[labels]
         mask_4_remove_negatives = self.remove_diag(mask_4_remove_negatives)
         mask_4_remove_positives = 1 - mask_4_remove_negatives
 
-        inst2proxy_positive = torch.exp((self.cosine_similarity(inst_embed, proxy) - margin)/temperature)
+        inst2crpd_proxy = torch.exp((self.cosine_similarity(inst_embed, proxy) - margin)/temperature)
         inst2inst_negatives = torch.exp((instance_zone*mask_4_remove_positives + margin)/temperature)
+        proxy2inst_negatives = torch.exp((inst2proxy_zone*mask_4_remove_positives + margin)/temperature)
         if self.pos_collected_numerator:
             inst2inst_positives = torch.exp((instance_zone*mask_4_remove_negatives - margin)/temperature)
-            numerator = inst2inst_positives.sum(dim=1) + inst2proxy_positive
-            denomerator = inst2inst_negatives.sum(dim=1)
+            proxy2inst_positives = torch.exp((inst2proxy_zone*mask_4_remove_negatives - margin)/temperature)
+            numerator0 = inst2inst_positives.sum(dim=1) + inst2crpd_proxy
+            denomerator0 = inst2inst_negatives.sum(dim=1)
+            numerator1 = proxy2inst_positives.sum(dim=1) + inst2crpd_proxy
+            denomerator1 = proxy2inst_negatives.sum(dim=1)
         else:
-            numerator = inst2proxy_positive
-            denomerator = inst2inst_negatives.sum(dim=1)
+            numerator0 = inst2crpd_proxy
+            denomerator0 = inst2inst_negatives.sum(dim=1)
+            numerator1 = inst2crpd_proxy
+            denomerator1 = proxy2inst_negatives.sum(dim=1)
 
-        criterion = -torch.log(numerator/denomerator).mean()
+        criterion = -(torch.log(numerator0/denomerator0) + torch.log(numerator1/denomerator1)).mean()
         return criterion
 
 
