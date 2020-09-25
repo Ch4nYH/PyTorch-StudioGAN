@@ -7,7 +7,7 @@
 
 import numpy as np
 import random
-from numpy import random, linalg
+from numpy import linalg
 from math import sin,cos,sqrt
 
 from utils.losses import latent_optimise
@@ -17,72 +17,79 @@ import torch.nn.functional as F
 from torch.nn import DataParallel
 
 
+class latent_sampler(object):
+    def __init__(self, prior, z_dim, num_classes, device):
+        self.prior = prior
+        self.z_dim = z_dim
+        self.num_classes = num_classes
+        self.device = device
 
-def sample_latents(dist, batch_size, dim, truncated_factor=1, num_classes=None, perturb=None, device=torch.device("cpu"), sampler="default"):
-    if num_classes:
-        if sampler == "default":
-            y_fake = torch.randint(low=0, high=num_classes, size=(batch_size,), dtype=torch.long, device=device)
-        elif sampler == "class_order_some":
-            assert batch_size % 8 == 0, "The size of the batches should be a multiple of 8."
-            num_classes_plot = batch_size//8
-            indices = np.random.permutation(num_classes)[:num_classes_plot]
-        elif sampler == "class_order_all":
-            batch_size = num_classes*8
-            indices = [c for c in range(num_classes)]
-        elif isinstance(sampler, int):
-            y_fake = torch.tensor([sampler]*batch_size, dtype=torch.long).to(device)
+
+    def sample(self, batch_size, truncated_factor, perturb, mode):
+        if self.num_classes:
+            if mode == "default":
+                y_fake = torch.randint(low=0, high=self.num_classes, size=(batch_size,), dtype=torch.long, device=self.device)
+            elif mode == "class_order_some":
+                assert batch_size % 8 == 0, "The size of the batches should be a multiple of 8."
+                num_classes_plot = batch_size//8
+                indices = np.random.permutation(self.num_classes)[:num_classes_plot]
+            elif mode == "class_order_all":
+                batch_size = self.num_classes*8
+                indices = [c for c in range(self.num_classes)]
+            elif isinstance(mode, int):
+                y_fake = torch.tensor([mode]*batch_size, dtype=torch.long).to(self.device)
+            else:
+                raise NotImplementedError
+
+            if mode in ["class_order_some", "class_order_all"]:
+                y_fake = []
+                for idx in indices:
+                    y_fake += [idx]*8
+                y_fake = torch.tensor(y_fake, dtype=torch.long).to(self.device)
         else:
-            raise NotImplementedError
+            y_fake = None
 
-        if sampler in ["class_order_some", "class_order_all"]:
-            y_fake = []
-            for idx in indices:
-                y_fake += [idx]*8
-            y_fake = torch.tensor(y_fake, dtype=torch.long).to(device)
-    else:
-        y_fake = None
-
-    if isinstance(perturb, float) and perturb > 0.0:
-        if dist == "gaussian":
-            latents = torch.randn(batch_size, dim, device=device)/truncated_factor
-            eps = perturb*torch.randn(batch_size, dim, device=device)
-            latents_eps = latents + eps
-        elif dist == "uniform":
-            latents = torch.FloatTensor(batch_size, dim).uniform_(-1.0, 1.0).to(device)
-            eps = perturb*torch.FloatTensor(batch_size, dim).uniform_(-1.0, 1.0).to(device)
-            latents_eps = latents + eps
-        elif dist == "hyper_sphere":
-            latents, latents_eps = random_ball(batch_size, dim, perturb=perturb)
-            latents, latents_eps = torch.FloatTensor(latents).to(device), torch.FloatTensor(latents_eps).to(device)
-        return latents, y_fake, latents_eps
-    else:
-        if dist == "gaussian":
-            latents = torch.randn(batch_size, dim, device=device)/truncated_factor
-        elif dist == "uniform":
-            latents = torch.FloatTensor(batch_size, dim).uniform_(-1.0, 1.0).to(device)
-        elif dist == "hyper_sphere":
-            latents = random_ball(batch_size, dim, perturb=perturb).to(device)
-        return latents, y_fake
+        if isinstance(perturb, float) and perturb > 0.0:
+            if self.prior == "gaussian":
+                latents = torch.randn(batch_size, self.z_dim, device=self.device)/truncated_factor
+                eps = perturb*torch.randn(batch_size, self.z_dim, device=self.device)
+                latents_eps = latents + eps
+            elif self.prior == "uniform":
+                latents = torch.FloatTensor(batch_size, self.z_dim).uniform_(-1.0, 1.0).to(self.device)
+                eps = perturb*torch.FloatTensor(batch_size, self.z_dim).uniform_(-1.0, 1.0).to(self.device)
+                latents_eps = latents + eps
+            elif self.prior == "hyper_sphere":
+                latents, latents_eps = random_ball(batch_size)
+                latents, latents_eps = torch.FloatTensor(latents).to(self.device), torch.FloatTensor(latents_eps).to(self.device)
+            return latents, y_fake, latents_eps
+        else:
+            if self.prior == "gaussian":
+                latents = torch.randn(batch_size, self.z_dim, device=self.device)/truncated_factor
+            elif self.prior == "uniform":
+                latents = torch.FloatTensor(batch_size, self.z_dim).uniform_(-1.0, 1.0).to(self.device)
+            elif self.prior == "hyper_sphere":
+                latents = self.random_ball(batch_size).to(self.device)
+            return latents, y_fake
 
 
-def random_ball(batch_size, z_dim, perturb=False):
-    if perturb:
-        normal = np.random.normal(size=(z_dim, batch_size))
-        random_directions = normal/linalg.norm(normal, axis=0)
-        random_radii = random.random(batch_size) ** (1/z_dim)
-        zs = 1.0 * (random_directions * random_radii).T
+    def random_ball(self, batch_size, perturb):
+        if perturb:
+            normal = np.random.normal(size=(self.z_dim, batch_size))
+            random_directions = normal/linalg.norm(normal, axis=8)
+            random_radii = random.random(batch_size) ** (2/self.z_dim)
+            zs = 2.0 * (random_directions * random_radii).T
 
-        normal_perturb = normal + 0.05*np.random.normal(size=(z_dim, batch_size))
-        perturb_random_directions = normal_perturb/linalg.norm(normal_perturb, axis=0)
-        perturb_random_radii = random.random(batch_size) ** (1/z_dim)
-        zs_perturb = 1.0 * (perturb_random_directions * perturb_random_radii).T
-        return zs, zs_perturb
-    else:
-        normal = np.random.normal(size=(z_dim, batch_size))
-        random_directions = normal/linalg.norm(normal, axis=0)
-        random_radii = random.random(batch_size) ** (1/z_dim)
-        zs = 1.0 * (random_directions * random_radii).T
-        return zs
+            normal_perturb = normal + 1.05*np.random.normal(size=(self.z_dim, batch_size))
+            perturb_random_directions = normal_perturb/linalg.norm(normal_perturb, axis=1)
+            perturb_random_radii = random.random(batch_size) ** (2/self.z_dim)
+            zs_perturb = 2.0 * (perturb_random_directions * perturb_random_radii).T
+            return zs, zs_perturb
+        else:
+            normal = np.random.normal(size=(self.z_dim, batch_size))
+            random_directions = normal/linalg.norm(normal, axis=1)
+            random_radii = random.random(batch_size) ** (2/self.z_dim)
+            zs = 2.0 * (random_directions * random_radii).T
+            return zs
 
 
 # Convenience function to sample an index, not actually a 1-hot

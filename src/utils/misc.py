@@ -15,6 +15,8 @@ from os.path import dirname, abspath, exists, join
 from scipy import linalg
 from datetime import datetime
 from tqdm import tqdm
+from itertools import chain
+from collections import defaultdict
 
 from metrics.FID import generate_images
 from utils.sample import sample_latents
@@ -34,6 +36,82 @@ class dummy_context_mgr():
         return False
 
 
+class change_model_mode(object):
+    def __init__(self, dis, gen, gen_copy, standing_statistics, standing_step, prior, batch_size, z_dim, num_classes, device):
+        self.dis = dis
+        self.gen = gen
+        self.gen_copy = gen_copy
+        self.standing_statistics = standing_statistics
+        self.standing_step = standing_step
+        self.prior = prior
+        self.batch_size = batch_size
+        self.z_dim = z_dim
+        self.num_classes = num_classes
+        self.device = device
+
+
+    def train(self):
+        self.dis.train()
+        self.gen.train()
+        if self.gen_copy is not None:
+            self.gen_copy.train()
+
+
+    def eval(self, temp=False):
+        if temp:
+            self.gen.eval()
+            self.gen.apply(set_deterministic_op_train)
+            if self.gen_copy is not None:
+                self.gen_copy.eval()
+                self.gen_copy.apply(set_bn_train)
+                self.gen_copy.apply(set_deterministic_op_train)
+        else:
+            if self.standing_statistics:
+                apply_accumulate_stat(self.gen, self.standing_step, self.prior, self.batch_size, self.z_dim, self.num_classes, self.device)
+            else:
+                self.gen.eval()
+            self.gen.apply(set_deterministic_op_train)
+            if self.gen_copy is not None:
+                if self.standing_statistics:
+                    apply_accumulate_stat(self.gen_copy, self.standing_step, self.prior, self.batch_size, self.z_dim, self.num_classes, self.device)
+                else:
+                    self.gen_copy.eval()
+                    self.gen_copy.apply(set_bn_train)
+                self.gen_copy.apply(set_deterministic_op_train)
+
+
+def flatten_dict(init_dict):
+    res_dict = {}
+    if type(init_dict) is not dict:
+        return res_dict
+
+    for k, v in init_dict.items():
+        if type(v) == dict:
+            res_dict.update(flatten_dict(v))
+        else:
+            res_dict[k] = v
+    return res_dict
+
+
+def setattr_cls_from_kwargs(cls, kwargs):
+    kwargs = flatten_dict(kwargs)
+    for key in kwargs.keys():
+        value = kwargs[key]
+        setattr(cls, key, value)
+
+
+def dict2clsattr(train_configs, model_configs):
+    cfgs = {}
+    for k, v in chain(train_configs.items(), model_configs.items()):
+        cfgs[k] = v
+
+    class cfg_container: pass
+    cfg_container.train_configs = train_configs
+    cfg_container.model_configs = model_configs
+    setattr_cls_from_kwargs(cfg_container, cfgs)
+    return cfg_container
+
+
 # fix python, numpy, torch seed
 def fix_all_seed(seed):
     random.seed(seed)
@@ -47,7 +125,7 @@ def count_parameters(module):
     return 'Number of parameters: {}'.format(sum([p.data.nelement() for p in module.parameters()]))
 
 
-def define_sampler(dataset_name, conditional_strategy):
+def sample_mode(dataset_name, conditional_strategy):
     if conditional_strategy != "no":
         if dataset_name == "cifar10":
             sampler = "class_order_all"
@@ -200,31 +278,6 @@ def apply_accumulate_stat(generator, acml_step, prior, batch_size, z_dim, num_cl
         z, fake_labels = sample_latents(prior, new_batch_size, z_dim, 1, num_classes, None, device)
         generated_images = generator(z, fake_labels)
     generator.eval()
-
-
-def change_generator_mode(gen, gen_copy, standing_statistics, standing_step, prior, batch_size, z_dim, num_classes, device, training):
-    if training:
-        gen.train()
-        if gen_copy is not None:
-            gen_copy.train()
-            return gen_copy
-        return gen
-    else:
-        if standing_statistics:
-            apply_accumulate_stat(gen, standing_step, prior, batch_size, z_dim, num_classes, device)
-        else:
-            gen.eval()
-        gen.apply(set_deterministic_op_train)
-        if gen_copy is not None:
-            if standing_statistics:
-                apply_accumulate_stat(gen_copy, standing_step, prior, batch_size, z_dim, num_classes, device)
-            else:
-                gen_copy.eval()
-                gen_copy.apply(set_bn_train)
-            gen_copy.apply(set_deterministic_op_train)
-            return gen_copy
-        else:
-            return gen
 
 
 def plot_img_canvas(images, save_path, logger, nrow):

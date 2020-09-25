@@ -55,23 +55,19 @@ def loss_wgan_gen(gen_out_fake):
     return -torch.mean(gen_out_fake)
 
 
-def latent_optimise(zs, fake_labels, gen_model, dis_model, conditional_strategy, latent_op_step, latent_op_rate,
-                    latent_op_alpha, latent_op_beta, trans_cost, default_device):
-    batch_size = zs.shape[0]
-    for step in range(latent_op_step):
-        drop_mask = (torch.FloatTensor(batch_size, 1).uniform_() > 1 - latent_op_rate).to(default_device)
-        z_gradients, z_gradients_norm = calc_derv(zs, fake_labels, dis_model, conditional_strategy, default_device, gen_model)
-        delta_z = latent_op_alpha*z_gradients/(latent_op_beta + z_gradients_norm)
-        zs = torch.clamp(zs + drop_mask*delta_z, -1.0, 1.0)
-
-        if trans_cost:
-            if step == 0:
-                transport_cost = (delta_z.norm(2, dim=1)**2).mean()
-            else:
-                transport_cost += (delta_z.norm(2, dim=1)**2).mean()
-            return zs, trans_cost
+def set_temperature(conditional_strategy, tempering_type, start_temperature, end_temperature, step_count, tempering_step, total_step):
+    if conditional_strategy == 'ContraGAN':
+        if tempering_type == 'continuous':
+            t = start_temperature + step_count*(end_temperature - start_temperature)/total_step
+        elif tempering_type == 'discrete':
+            tempering_interval = total_step//(tempering_step + 1)
+            t = start_temperature + \
+                (step_count//tempering_interval)*(end_temperature-start_temperature)/tempering_step
         else:
-            return zs
+            t = start_temperature
+    else:
+        t = 'no'
+    return t
 
 
 class Cross_Entropy_loss(torch.nn.Module):
@@ -233,84 +229,114 @@ class NT_Xent_loss(torch.nn.Module):
 
         return loss / (2 * self.batch_size)
 
-
-def calc_derv4gp(netD, conditional_strategy, real_data, fake_data, real_labels, device):
-    batch_size, c, h, w = real_data.shape
-    alpha = torch.rand(batch_size, 1)
-    alpha = alpha.expand(batch_size, real_data.nelement()//batch_size).contiguous().view(batch_size,c,h,w)
-    alpha = alpha.to(device)
-
-    real_data = real_data.to(device)
-
-    interpolates = alpha * real_data + ((1 - alpha) * fake_data)
-    interpolates = interpolates.to(device)
-    interpolates = autograd.Variable(interpolates, requires_grad=True)
-
-    if conditional_strategy in ['ContraGAN', "Proxy_NCA_GAN", "NT_Xent_GAN"]:
-        _, _, disc_interpolates = netD(interpolates, real_labels)
-    elif conditional_strategy in ['ProjGAN', 'no']:
-            disc_interpolates = netD(interpolates, real_labels)
-    elif conditional_strategy == 'ACGAN':
-        _, disc_interpolates = netD(interpolates, real_labels)
-    else:
-        raise NotImplementedError
-
-    gradients = autograd.grad(outputs=disc_interpolates, inputs=interpolates,
-                              grad_outputs=torch.ones(disc_interpolates.size()).to(device),
-                              create_graph=True, retain_graph=True, only_inputs=True)[0]
-    gradients = gradients.view(gradients.size(0), -1)
-
-    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
-    return gradient_penalty
+class gradient_regularizer(object):
+    def __init__(self, gen, dis, conditional_strategy, latent_op_step, latent_op_rate, latent_op_alpha, latent_op_beta):
+        self.gen = gen
+        self.dis = dis
+        self.conditional_strategy = conditional_strategy
+        self.latent_op_step = latent_op_step
+        self.latent_op_rate = latent_op_rate
+        self.latent_op_alpha = latent_op_alpha
+        self.latent_op_beta = latent_op_beta
 
 
-def calc_derv4dra(netD, conditional_strategy, real_data, real_labels, device):
-    batch_size, c, h, w = real_data.shape
-    alpha = torch.rand(batch_size, 1, 1, 1)
-    alpha = alpha.to(device)
+    def latent_optimise(self, zs, fake_labels, trans_cost, device):
+        batch_size = zs.shape[0]
+        for step in range(self.latent_op_step):
+            drop_mask = (torch.FloatTensor(batch_size, 1).uniform_() > 1 - self.latent_op_rate).to(self.device)
+            z_gradients, z_gradients_norm = self.calc_derv(zs, fake_labels, self.dis, self.conditional_strategy, self.device, self.gen)
+            delta_z = self.latent_op_alpha*z_gradients/(self.latent_op_beta + z_gradients_norm)
+            zs = torch.clamp(zs + drop_mask*delta_z, -1.0, 1.0)
 
-    real_data = real_data.to(device)
-    differences  = 0.5*real_data.std()*torch.rand(real_data.size()).to(device)
+            if trans_cost:
+                if step == 0:
+                    transport_cost = (delta_z.norm(2, dim=1)**2).mean()
+                else:
+                    transport_cost += (delta_z.norm(2, dim=1)**2).mean()
 
-    interpolates = real_data + (alpha*differences)
-    interpolates = interpolates.to(device)
-    interpolates = autograd.Variable(interpolates, requires_grad=True)
-
-    if conditional_strategy in ['ContraGAN', "Proxy_NCA_GAN", "NT_Xent_GAN"]:
-        _, _, disc_interpolates = netD(interpolates, real_labels)
-    elif conditional_strategy in ['ProjGAN', 'no']:
-            disc_interpolates = netD(interpolates, real_labels)
-    elif conditional_strategy == 'ACGAN':
-        _, disc_interpolates = netD(interpolates, real_labels)
-    else:
-        raise NotImplementedError
-
-    gradients = autograd.grad(outputs=disc_interpolates, inputs=interpolates,
-                              grad_outputs=torch.ones(disc_interpolates.size()).to(device),
-                              create_graph=True, retain_graph=True, only_inputs=True)[0]
-    gradients = gradients.view(gradients.size(0), -1)
-
-    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
-    return gradient_penalty
+        if trans_cost:
+            return zs, trans_cost
+        else:
+            return zs
 
 
-def calc_derv(inputs, labels, netD, conditional_strategy, device, netG=None):
-    zs = autograd.Variable(inputs, requires_grad=True)
-    fake_images = netG(zs, labels)
+    def calc_derv4gp(self, real_data, fake_data, real_labels, device):
+        batch_size, c, h, w = real_data.shape
+        alpha = torch.rand(batch_size, 1)
+        alpha = alpha.expand(batch_size, real_data.nelement()//batch_size).contiguous().view(batch_size,c,h,w)
+        alpha = alpha.to(device)
 
-    if conditional_strategy in ['ContraGAN', "Proxy_NCA_GAN", "NT_Xent_GAN"]:
-        _, _, dis_out_fake = netD(fake_images, labels)
-    elif conditional_strategy in ['ProjGAN', 'no']:
-        dis_out_fake = netD(fake_images, labels)
-    elif conditional_strategy == 'ACGAN':
-        _, dis_out_fake = netD(fake_images, labels)
-    else:
-        raise NotImplementedError
+        real_data = real_data.to(device)
 
-    gradients = autograd.grad(outputs=dis_out_fake, inputs=zs,
-                              grad_outputs=torch.ones(dis_out_fake.size()).to(device),
-                              create_graph=True, retain_graph=True, only_inputs=True)[0]
+        interpolates = alpha * real_data + ((1 - alpha) * fake_data)
+        interpolates = interpolates.to(device)
+        interpolates = autograd.Variable(interpolates, requires_grad=True)
 
-    gradients_norm = torch.unsqueeze((gradients.norm(2, dim=1) ** 2), dim=1)
+        if self.conditional_strategy in ['ContraGAN', "Proxy_NCA_GAN", "NT_Xent_GAN"]:
+            _, _, disc_interpolates = self.dis(interpolates, real_labels)
+        elif self.conditional_strategy in ['ProjGAN', 'no']:
+            disc_interpolates = self.dis(interpolates, real_labels)
+        elif self.conditional_strategy == 'ACGAN':
+            _, disc_interpolates = self.dis(interpolates, real_labels)
+        else:
+            raise NotImplementedError
 
-    return gradients, gradients_norm
+        gradients = autograd.grad(outputs=disc_interpolates, inputs=interpolates,
+                                  grad_outputs=torch.ones(disc_interpolates.size()).to(device),
+                                  create_graph=True, retain_graph=True, only_inputs=True)[0]
+        gradients = gradients.view(gradients.size(0), -1)
+
+        gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+        return gradient_penalty
+
+
+    def calc_derv4dra(self, real_data, real_labels, device):
+        batch_size, c, h, w = real_data.shape
+        alpha = torch.rand(batch_size, 1, 1, 1)
+        alpha = alpha.to(device)
+
+        real_data = real_data.to(device)
+        differences  = 0.5*real_data.std()*torch.rand(real_data.size()).to(device)
+
+        interpolates = real_data + (alpha*differences)
+        interpolates = interpolates.to(device)
+        interpolates = autograd.Variable(interpolates, requires_grad=True)
+
+        if self.conditional_strategy in ['ContraGAN', "Proxy_NCA_GAN", "NT_Xent_GAN"]:
+            _, _, disc_interpolates = self.dis(interpolates, real_labels)
+        elif self.conditional_strategy in ['ProjGAN', 'no']:
+            disc_interpolates = self.dis(interpolates, real_labels)
+        elif self.conditional_strategy == 'ACGAN':
+            _, disc_interpolates = self.dis(interpolates, real_labels)
+        else:
+            raise NotImplementedError
+
+        gradients = autograd.grad(outputs=disc_interpolates, inputs=interpolates,
+                                  grad_outputs=torch.ones(disc_interpolates.size()).to(device),
+                                  create_graph=True, retain_graph=True, only_inputs=True)[0]
+        gradients = gradients.view(gradients.size(0), -1)
+
+        gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+        return gradient_penalty
+
+
+    def calc_derv(self, inputs, labels, device):
+        zs = autograd.Variable(inputs, requires_grad=True)
+        fake_images = self.gen(zs, labels)
+
+        if self.conditional_strategy in ['ContraGAN', "Proxy_NCA_GAN", "NT_Xent_GAN"]:
+            _, _, dis_out_fake = self.dis(fake_images, labels)
+        elif self.conditional_strategy in ['ProjGAN', 'no']:
+            dis_out_fake = self.dis(fake_images, labels)
+        elif self.conditional_strategy == 'ACGAN':
+            _, dis_out_fake = self.dis(fake_images, labels)
+        else:
+            raise NotImplementedError
+
+        gradients = autograd.grad(outputs=dis_out_fake, inputs=zs,
+                                  grad_outputs=torch.ones(dis_out_fake.size()).to(device),
+                                  create_graph=True, retain_graph=True, only_inputs=True)[0]
+
+        gradients_norm = torch.unsqueeze((gradients.norm(2, dim=1) ** 2), dim=1)
+
+        return gradients, gradients_norm

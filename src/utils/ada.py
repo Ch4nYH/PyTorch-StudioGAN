@@ -422,3 +422,13 @@ def augment(img, p, transform_matrix=(None, None)):
     img, C = random_apply_color(img, p, transform_matrix[1])
 
     return img, (G, C)
+
+
+def initialize_ada(prev_ada_p, ada_target, ada_length, device):
+    ada_augment = torch.tensor([0.0, 0.0], device=device)
+    if prev_ada_p is not None:
+        ada_aug_p = prev_ada_p
+    else:
+        ada_aug_p = 0.0
+    ada_aug_step = ada_target/ada_length
+    return ada_augment, ada_aug_p, ada_aug_step
