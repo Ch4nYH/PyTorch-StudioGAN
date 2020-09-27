@@ -346,8 +346,8 @@ def plot_spectrum_image(real_spectrum, fake_spectrum, run_name, logger):
     logger.info("Saved image to {}".format(save_path))
 
 
-def save_images_npz(run_name, data_loader, num_samples, num_classes, generator, discriminator, is_generate,
-                    truncated_factor,  prior, latent_op, latent_op_step, latent_op_alpha, latent_op_beta, device):
+def save_images_npz(run_name, data_loader, num_samples, num_classes, gen, is_generate, lt_sampler, grad_reg, truncated_factor,
+                    latent_op, latent_op_step, device):
     if is_generate is True:
         batch_size = data_loader.batch_size
         n_batches = math.ceil(float(num_samples) / float(batch_size))
@@ -373,8 +373,7 @@ def save_images_npz(run_name, data_loader, num_samples, num_classes, generator, 
             start = i*batch_size
             end = start + batch_size
             if is_generate:
-                images, labels = generate_images(batch_size, generator, discriminator, truncated_factor, prior, latent_op,
-                                             latent_op_step, latent_op_alpha, latent_op_beta,  device)
+                images, labels = generate_images(batch_size, gen, lt_sampler, grad_reg, truncated_factor, latent_op, latent_op_step, device)
             else:
                 try:
                     images, labels = next(data_iter)
@@ -383,6 +382,7 @@ def save_images_npz(run_name, data_loader, num_samples, num_classes, generator, 
 
             x += [np.uint8(255 * (images.detach().cpu().numpy() + 1) / 2.)]
             y += [labels.detach().cpu().numpy()]
+
     x = np.concatenate(x, 0)[:num_samples]
     y = np.concatenate(y, 0)[:num_samples]
     print('Images shape: %s, Labels shape: %s' % (x.shape, y.shape))
@@ -391,8 +391,8 @@ def save_images_npz(run_name, data_loader, num_samples, num_classes, generator, 
     np.savez(npz_filename, **{'x' : x, 'y' : y})
 
 
-def save_images_png(run_name, data_loader, num_samples, num_classes, generator, discriminator, is_generate,
-                    truncated_factor,  prior, latent_op, latent_op_step, latent_op_alpha, latent_op_beta, device):
+def save_images_png(run_name, data_loader, num_samples, num_classes, gen, is_generate, lt_sampler, grad_reg, truncated_factor,
+                    latent_op, latent_op_step, device):
     if is_generate is True:
         batch_size = data_loader.batch_size
         n_batches = math.ceil(float(num_samples) / float(batch_size))
@@ -418,8 +418,7 @@ def save_images_png(run_name, data_loader, num_samples, num_classes, generator, 
             start = i*batch_size
             end = start + batch_size
             if is_generate:
-                images, labels = generate_images(batch_size, generator, discriminator, truncated_factor, prior, latent_op,
-                                             latent_op_step, latent_op_alpha, latent_op_beta,  device)
+                images, labels = generate_images(batch_size, gen, lt_sampler, grad_reg, truncated_factor, latent_op, latent_op_step, device)
             else:
                 try:
                     images, labels = next(data_iter)
@@ -434,23 +433,20 @@ def save_images_png(run_name, data_loader, num_samples, num_classes, generator, 
     print('Saving png to ./generated_images/%s' % run_name)
 
 
-def generate_images_for_KNN(batch_size, real_label, gen_model, dis_model, truncated_factor, prior, latent_op, latent_op_step, latent_op_alpha, latent_op_beta, device):
-    if isinstance(gen_model, DataParallel):
-        z_dim = gen_model.module.z_dim
-        num_classes = gen_model.module.num_classes
-        conditional_strategy = dis_model.module.conditional_strategy
+def generate_images_for_KNN(batch_size, real_label, gen, lt_sampler, grad_reg, truncated_factor, latent_op, latent_op_step, device):
+    if isinstance(gen, DataParallel):
+        z_dim = gen.module.z_dim
+        num_classes = gen.module.num_classes
     else:
-        z_dim = gen_model.z_dim
-        num_classes = gen_model.num_classes
-        conditional_strategy = dis_model.conditional_strategy
+        z_dim = gen.z_dim
+        num_classes = gen.num_classes
 
-    zs, fake_labels = sample_latents(prior, batch_size, z_dim, truncated_factor, num_classes, None, device, real_label)
+    zs, fake_labels = lt_sampler.sample(batch_size, truncated_factor, None, real_label)
 
     if latent_op:
-        zs = latent_optimise(zs, fake_labels, gen_model, dis_model, conditional_strategy, latent_op_step, 1.0,
-                            latent_op_alpha, latent_op_beta, False, device)
+        zs = grad_reg.latent_optimise(zs, fake_labels, latent_op_step, False)
 
     with torch.no_grad():
-        batch_images = gen_model(zs, fake_labels, evaluation=True)
+        batch_images = gen(zs, fake_labels, evaluation=True)
 
     return batch_images, list(fake_labels.detach().cpu().numpy())

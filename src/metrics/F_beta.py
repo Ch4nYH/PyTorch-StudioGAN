@@ -41,15 +41,14 @@ class precision_recall(object):
         self.device = device
 
 
-    def generate_images(self, gen, lt_sampler, grad_reg, batch_size, truncated_factor, latent_op):
+    def generate_images(self, gen, lt_sampler, grad_reg, batch_size, truncated_factor, latent_op, latent_op_step):
         zs, fake_labels = lt_sampler.sample(batch_size, truncated_factor, None, "default")
 
         if latent_op:
-            zs = grad_reg.latent_optimise(zs, fake_labels, False, self.device)
+            zs = grad_reg.latent_optimise(zs, fake_labels, latent_op_step, False)
 
         with torch.no_grad():
             batch_images = gen(zs, fake_labels, evaluation=True)
-
         return batch_images
 
 
@@ -69,7 +68,6 @@ class precision_recall(object):
 
         real_density = np.histogram(real_labels, bins=num_clusters, range=[0, num_clusters], density=True)[0]
         fake_density = np.histogram(fake_labels, bins=num_clusters, range=[0, num_clusters], density=True)[0]
-
         return real_density, fake_density
 
 
@@ -90,29 +88,24 @@ class precision_recall(object):
             raise ValueError('Detected value > 1.001, this should not happen.')
         precision = np.clip(precision, 0, 1)
         recall = np.clip(recall, 0, 1)
-
         return precision, recall
 
-    def compute_precision_recall(self, dataloader, gen, dis, num_generate, num_runs, num_clusters, truncated_factor, prior,
-                                 latent_op, latent_op_step, latent_op_alpha, latent_op_beta, batch_size, num_angles=1001):
+
+    def compute_precision_recall(self, dataloader, gen, num_generate, num_runs, num_clusters, lt_sampler, grad_reg, truncated_factor,
+                                 latent_op, latent_op_step, batch_size, num_angles=1001):
         if isinstance(gen, DataParallel):
             z_dim = gen.module.z_dim
             num_classes = gen.module.num_classes
-            conditional_strategy = dis.module.conditional_strategy
         else:
             z_dim = gen.z_dim
             num_classes = gen.num_classes
-            conditional_strategy = dis.conditional_strategy
 
         dataset_iter = iter(dataloader)
         n_batches = int(math.ceil(float(num_generate) / float(batch_size)))
-        lt_sampler = latent_sampler(prior, z_dim, num_classes, self.device)
-        grad_reg = gradient_regularizer(gen, dis, conditional_strategy, latent_op_step, 1.0, latent_op_alpha, latent_op_beta)
-
         for i in tqdm(range(n_batches)):
             real_images, real_labels = next(dataset_iter)
             real_images, real_labels = real_images.to(self.device), real_labels.to(self.device)
-            fake_images = self.generate_images(gen, lt_sampler, grad_reg, batch_size, truncated_factor, latent_op)
+            fake_images = self.generate_images(gen, lt_sampler, grad_reg, batch_size, truncated_factor, latent_op, latent_op_step)
 
             real_embed = self.inception_softmax(real_images).detach().cpu().numpy()
             fake_embed = self.inception_softmax(fake_images).detach().cpu().numpy()
@@ -136,7 +129,6 @@ class precision_recall(object):
 
         mean_precision = np.mean(precisions, axis=0)
         mean_recall = np.mean(recalls, axis=0)
-
         return mean_precision, mean_recall
 
 
@@ -144,15 +136,15 @@ class precision_recall(object):
         return (1 + beta**2) * (precision * recall) / ((beta**2 * precision) + recall + epsilon)
 
 
-def calculate_f_beta_score(dataloader, gen, dis, inception_model, num_generate, num_runs, num_clusters, beta,
-                           truncated_factor, prior, latent_op, latent_op_step, latent_op_alpha, latent_op_beta, device):
+def calculate_f_beta_score(dataloader, gen, inception_model, num_generate, num_runs, num_clusters, beta, lt_sampler, grad_reg,
+                           truncated_factor, latent_op, latent_op_step, device):
     inception_model.eval()
 
     batch_size = dataloader.batch_size
     PR = precision_recall(inception_model, device=device)
     print("Calculating F_beta Score....")
-    precision, recall = PR.compute_precision_recall(dataloader, gen, dis, num_generate, num_runs, num_clusters, truncated_factor,
-                                                    prior, latent_op, latent_op_step, latent_op_alpha, latent_op_beta, batch_size)
+    precision, recall = PR.compute_precision_recall(dataloader, gen, num_generate, num_runs, num_clusters, lt_sampler, grad_reg,
+                                                    truncated_factor, latent_op, latent_op_step, batch_size)
 
     if not ((precision >= 0).all() and (precision <= 1).all()):
         raise ValueError('All values in precision must be in [0, 1].')
