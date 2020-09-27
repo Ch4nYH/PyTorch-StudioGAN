@@ -23,7 +23,7 @@ from utils.biggan_utils import interp
 from utils.sample import sample_1hot, make_mask, target_class_sampler
 from utils.misc import *
 from utils.losses import set_temperature
-from utils.losses import Conditional_Contrastive_loss, Proxy_NCA_loss, NT_Xent_loss
+from utils.losses import Conditional_Contrastive_loss_v1, Conditional_Contrastive_loss_v2, Proxy_NCA_loss, NT_Xent_loss
 from utils.diff_aug import DiffAugment
 from utils.cr_diff_aug import CR_DiffAug
 
@@ -97,7 +97,7 @@ class Worker(object):
                      self.gradient_penalty_for_dis, self.deep_regret_analysis_for_dis, self.cr, self.bcr, self.zcr)
 
         if self.conditional_strategy == 'ContraGAN':
-            self.contrastive_criterion = Conditional_Contrastive_loss(self.default_device, self.batch_size, self.pos_collected_numerator)
+            self.contrastive_criterion = Conditional_Contrastive_loss_v2(self.default_device, self.batch_size, self.pos_collected_numerator)
         elif self.conditional_strategy == 'Proxy_NCA_GAN':
             if isinstance(self.dis_model, DataParallel):
                 self.embedding_layer = self.dis_model.module.embedding
