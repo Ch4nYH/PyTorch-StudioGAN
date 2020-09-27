@@ -10,8 +10,8 @@ import math
 from scipy import linalg
 from tqdm import tqdm
 
-from utils.sample import sample_latents
-from utils.losses import latent_optimise
+from utils.sample import latent_sampler
+from utils.losses import gradient_regularizer
 
 import torch
 from torch.nn import DataParallel
@@ -19,7 +19,7 @@ from torch.nn import DataParallel
 
 
 def calculate_accuracy(dataloader, generator, discriminator, D_loss, num_evaluate, truncated_factor, prior, latent_op,
-                       latent_op_step, latent_op_alpha, latent_op_beta, device, cr, eval_generated_sample=False):
+                       latent_op_step, latent_op_alpha, latent_op_beta, device, eval_generated_sample=False):
     data_iter = iter(dataloader)
     batch_size = dataloader.batch_size
 
@@ -34,6 +34,9 @@ def calculate_accuracy(dataloader, generator, discriminator, D_loss, num_evaluat
 
     total_batch = num_evaluate//batch_size
 
+    lt_sampler = latent_sampler(prior, z_dim, num_classes, device)
+    grad_reg = gradient_regularizer(generator, discriminator, conditional_strategy, latent_op_step, 1.0, latent_op_alpha, latent_op_beta)
+
     if D_loss.__name__ in ["loss_dcgan_dis", "loss_lsgan_dis"]:
         cutoff = 0.5
     elif D_loss.__name__ == "loss_hinge_dis":
@@ -45,10 +48,9 @@ def calculate_accuracy(dataloader, generator, discriminator, D_loss, num_evaluat
 
     if eval_generated_sample:
         for batch_id in tqdm(range(total_batch)):
-            zs, fake_labels = sample_latents(prior, batch_size, z_dim, truncated_factor, num_classes, None, device)
+            zs, fake_labels = lt_sampler.sample(batch_size, 1, None, "default")
             if latent_op:
-                zs = latent_optimise(zs, fake_labels, generator, discriminator, conditional_strategy, latent_op_step,
-                                     1.0, latent_op_alpha, latent_op_beta, False, device)
+                zs = grad_reg.latent_optimise(zs, fake_labels, False, device)
 
             real_images, real_labels = next(data_iter)
             real_images, real_labels = real_images.to(device), real_labels.to(device)

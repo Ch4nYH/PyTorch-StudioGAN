@@ -10,8 +10,6 @@ import random
 from numpy import linalg
 from math import sin,cos,sqrt
 
-from utils.losses import latent_optimise
-
 import torch
 import torch.nn.functional as F
 from torch.nn import DataParallel
@@ -25,7 +23,7 @@ class latent_sampler(object):
         self.device = device
 
 
-    def sample(self, batch_size, truncated_factor, perturb, mode):
+    def sample(self, batch_size, truncated_factor, perturb, mode="default"):
         if self.num_classes:
             if mode == "default":
                 y_fake = torch.randint(low=0, high=self.num_classes, size=(batch_size,), dtype=torch.long, device=self.device)
@@ -59,7 +57,7 @@ class latent_sampler(object):
                 eps = perturb*torch.FloatTensor(batch_size, self.z_dim).uniform_(-1.0, 1.0).to(self.device)
                 latents_eps = latents + eps
             elif self.prior == "hyper_sphere":
-                latents, latents_eps = random_ball(batch_size)
+                latents, latents_eps = self.random_ball(batch_size)
                 latents, latents_eps = torch.FloatTensor(latents).to(self.device), torch.FloatTensor(latents_eps).to(self.device)
             return latents, y_fake, latents_eps
         else:

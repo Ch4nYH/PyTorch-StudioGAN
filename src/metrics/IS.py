@@ -7,8 +7,8 @@
 import math
 from tqdm import tqdm
 
-from utils.sample import sample_latents
-from utils.losses import latent_optimise
+from utils.sample import latent_sampler
+from utils.losses import gradient_regularizer
 
 import torch
 from torch.nn import DataParallel
@@ -21,21 +21,18 @@ class evaluator(object):
         self.device = device
 
 
-    def generate_images(self, gen, dis, truncated_factor, prior, latent_op, latent_op_step, latent_op_alpha, latent_op_beta, batch_size):
+    def generate_images(self, gen, lt_sampler, grad_reg, truncated_factor, latent_op, latent_op_step, batch_size):
         if isinstance(gen, DataParallel):
             z_dim = gen.module.z_dim
             num_classes = gen.module.num_classes
-            conditional_strategy = dis.module.conditional_strategy
         else:
             z_dim = gen.z_dim
             num_classes = gen.num_classes
-            conditional_strategy = dis.conditional_strategy
 
-        zs, fake_labels = sample_latents(prior, batch_size, z_dim, truncated_factor, num_classes, None, self.device)
+        zs, fake_labels = lt_sampler.sample(batch_size, truncated_factor, None)
 
         if latent_op:
-            zs = latent_optimise(zs, fake_labels, gen, dis, conditional_strategy, latent_op_step, 1.0, latent_op_alpha,
-                                latent_op_beta, False, self.device)
+            zs = grad_reg.latent_optimise(zs, fake_labels, latent_op_step, False)
 
         with torch.no_grad():
             batch_images = gen(zs, fake_labels, evaluation=True)
@@ -66,19 +63,17 @@ class evaluator(object):
         return m_scores, m_std
 
 
-    def eval_gen(self, gen, dis, n_eval, truncated_factor, prior, latent_op, latent_op_step, latent_op_alpha,
-                 latent_op_beta, split, batch_size):
+    def eval_gen(self, gen, num_generate, lt_sampler, grad_reg, truncated_factor, latent_op, latent_op_step, split, batch_size):
         ys = []
-        n_batches = int(math.ceil(float(n_eval) / float(batch_size)))
+        n_batches = int(math.ceil(float(num_generate) / float(batch_size)))
         for i in tqdm(range(n_batches)):
-            batch_images = self.generate_images(gen, dis, truncated_factor, prior, latent_op, latent_op_step,
-                                                latent_op_alpha, latent_op_beta, batch_size)
+            batch_images = self.generate_images(gen, lt_sampler, grad_reg, truncated_factor, latent_op, latent_op_step, batch_size)
             y = self.inception_softmax(batch_images)
             ys.append(y)
 
         with torch.no_grad():
             ys = torch.cat(ys, 0)
-            m_scores, m_std = self.kl_scores(ys[:n_eval], splits=split)
+            m_scores, m_std = self.kl_scores(ys[:num_generate], splits=split)
         return m_scores, m_std
 
 
@@ -101,13 +96,13 @@ class evaluator(object):
         return m_scores, m_std
 
 
-def calculate_incep_score(dataloader, generator, discriminator, inception_model, n_generate, truncated_factor, prior,
-                          latent_op, latent_op_step, latent_op_alpha, latent_op_beta, splits, device):
+def calculate_incep_score(dataloader, gen, inception_model, num_generate, lt_sampler, grad_reg, truncated_factor, latent_op,
+                          latent_op_step, splits, device):
     inception_model.eval()
 
     batch_size = dataloader.batch_size
     evaluator_instance = evaluator(inception_model, device=device)
     print("Calculating Inception Score....")
-    kl_score, kl_std = evaluator_instance.eval_gen(generator, discriminator, n_generate, truncated_factor, prior,
-                                                   latent_op, latent_op_step, latent_op_alpha, latent_op_beta, splits, batch_size)
+    kl_score, kl_std = evaluator_instance.eval_gen(gen, num_generate, lt_sampler, grad_reg, truncated_factor, latent_op,
+                                                   latent_op_step, splits, batch_size)
     return kl_score, kl_std

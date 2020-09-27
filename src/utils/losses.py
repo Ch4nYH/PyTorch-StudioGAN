@@ -230,21 +230,21 @@ class NT_Xent_loss(torch.nn.Module):
         return loss / (2 * self.batch_size)
 
 class gradient_regularizer(object):
-    def __init__(self, gen, dis, conditional_strategy, latent_op_step, latent_op_rate, latent_op_alpha, latent_op_beta):
+    def __init__(self, gen, dis, conditional_strategy, latent_op_rate, latent_op_alpha, latent_op_beta, device):
         self.gen = gen
         self.dis = dis
         self.conditional_strategy = conditional_strategy
-        self.latent_op_step = latent_op_step
         self.latent_op_rate = latent_op_rate
         self.latent_op_alpha = latent_op_alpha
         self.latent_op_beta = latent_op_beta
+        self.device = device
 
 
-    def latent_optimise(self, zs, fake_labels, trans_cost, device):
+    def latent_optimise(self, zs, fake_labels, latent_op_step, trans_cost):
         batch_size = zs.shape[0]
-        for step in range(self.latent_op_step):
+        for step in range(latent_op_step):
             drop_mask = (torch.FloatTensor(batch_size, 1).uniform_() > 1 - self.latent_op_rate).to(self.device)
-            z_gradients, z_gradients_norm = self.calc_derv(zs, fake_labels, self.dis, self.conditional_strategy, self.device, self.gen)
+            z_gradients, z_gradients_norm = self.calc_derv(zs, fake_labels)
             delta_z = self.latent_op_alpha*z_gradients/(self.latent_op_beta + z_gradients_norm)
             zs = torch.clamp(zs + drop_mask*delta_z, -1.0, 1.0)
 
@@ -260,16 +260,16 @@ class gradient_regularizer(object):
             return zs
 
 
-    def calc_derv4gp(self, real_data, fake_data, real_labels, device):
+    def calc_derv4gp(self, real_data, fake_data, real_labels):
         batch_size, c, h, w = real_data.shape
         alpha = torch.rand(batch_size, 1)
         alpha = alpha.expand(batch_size, real_data.nelement()//batch_size).contiguous().view(batch_size,c,h,w)
-        alpha = alpha.to(device)
+        alpha = alpha.to(self.device)
 
-        real_data = real_data.to(device)
+        real_data = real_data.to(self.device)
 
         interpolates = alpha * real_data + ((1 - alpha) * fake_data)
-        interpolates = interpolates.to(device)
+        interpolates = interpolates.to(self.device)
         interpolates = autograd.Variable(interpolates, requires_grad=True)
 
         if self.conditional_strategy in ['ContraGAN', "Proxy_NCA_GAN", "NT_Xent_GAN"]:
@@ -282,7 +282,7 @@ class gradient_regularizer(object):
             raise NotImplementedError
 
         gradients = autograd.grad(outputs=disc_interpolates, inputs=interpolates,
-                                  grad_outputs=torch.ones(disc_interpolates.size()).to(device),
+                                  grad_outputs=torch.ones(disc_interpolates.size()).to(self.device),
                                   create_graph=True, retain_graph=True, only_inputs=True)[0]
         gradients = gradients.view(gradients.size(0), -1)
 
@@ -290,16 +290,16 @@ class gradient_regularizer(object):
         return gradient_penalty
 
 
-    def calc_derv4dra(self, real_data, real_labels, device):
+    def calc_derv4dra(self, real_data, real_labels):
         batch_size, c, h, w = real_data.shape
         alpha = torch.rand(batch_size, 1, 1, 1)
-        alpha = alpha.to(device)
+        alpha = alpha.to(self.device)
 
-        real_data = real_data.to(device)
-        differences  = 0.5*real_data.std()*torch.rand(real_data.size()).to(device)
+        real_data = real_data.to(self.device)
+        differences  = 0.5*real_data.std()*torch.rand(real_data.size()).to(self.device)
 
         interpolates = real_data + (alpha*differences)
-        interpolates = interpolates.to(device)
+        interpolates = interpolates.to(self.device)
         interpolates = autograd.Variable(interpolates, requires_grad=True)
 
         if self.conditional_strategy in ['ContraGAN', "Proxy_NCA_GAN", "NT_Xent_GAN"]:
@@ -312,7 +312,7 @@ class gradient_regularizer(object):
             raise NotImplementedError
 
         gradients = autograd.grad(outputs=disc_interpolates, inputs=interpolates,
-                                  grad_outputs=torch.ones(disc_interpolates.size()).to(device),
+                                  grad_outputs=torch.ones(disc_interpolates.size()).to(self.device),
                                   create_graph=True, retain_graph=True, only_inputs=True)[0]
         gradients = gradients.view(gradients.size(0), -1)
 
@@ -320,7 +320,7 @@ class gradient_regularizer(object):
         return gradient_penalty
 
 
-    def calc_derv(self, inputs, labels, device):
+    def calc_derv(self, inputs, labels):
         zs = autograd.Variable(inputs, requires_grad=True)
         fake_images = self.gen(zs, labels)
 
@@ -334,7 +334,7 @@ class gradient_regularizer(object):
             raise NotImplementedError
 
         gradients = autograd.grad(outputs=dis_out_fake, inputs=zs,
-                                  grad_outputs=torch.ones(dis_out_fake.size()).to(device),
+                                  grad_outputs=torch.ones(dis_out_fake.size()).to(self.device),
                                   create_graph=True, retain_graph=True, only_inputs=True)[0]
 
         gradients_norm = torch.unsqueeze((gradients.norm(2, dim=1) ** 2), dim=1)

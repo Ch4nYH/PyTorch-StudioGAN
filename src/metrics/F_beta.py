@@ -27,8 +27,8 @@ import numpy as np
 from sklearn.cluster import MiniBatchKMeans
 from tqdm import tqdm
 
-from utils.sample import sample_latents
-from utils.losses import latent_optimise
+from utils.sample import latent_sampler
+from utils.losses import gradient_regularizer
 
 import torch
 from torch.nn import DataParallel
@@ -41,21 +41,11 @@ class precision_recall(object):
         self.device = device
 
 
-    def generate_images(self, gen, dis, truncated_factor, prior, latent_op, latent_op_step, latent_op_alpha, latent_op_beta, batch_size):
-        if isinstance(gen, DataParallel):
-            z_dim = gen.module.z_dim
-            num_classes = gen.module.num_classes
-            conditional_strategy = dis.module.conditional_strategy
-        else:
-            z_dim = gen.z_dim
-            num_classes = gen.num_classes
-            conditional_strategy = dis.conditional_strategy
-
-        zs, fake_labels = sample_latents(prior, batch_size, z_dim, truncated_factor, num_classes, None, self.device)
+    def generate_images(self, gen, lt_sampler, grad_reg, batch_size, truncated_factor, latent_op):
+        zs, fake_labels = lt_sampler.sample(batch_size, truncated_factor, None, "default")
 
         if latent_op:
-            zs = latent_optimise(zs, fake_labels, gen, dis, conditional_strategy, latent_op_step, 1.0, latent_op_alpha,
-                                latent_op_beta, False, self.device)
+            zs = grad_reg.latent_optimise(zs, fake_labels, False, self.device)
 
         with torch.no_grad():
             batch_images = gen(zs, fake_labels, evaluation=True)
@@ -105,13 +95,24 @@ class precision_recall(object):
 
     def compute_precision_recall(self, dataloader, gen, dis, num_generate, num_runs, num_clusters, truncated_factor, prior,
                                  latent_op, latent_op_step, latent_op_alpha, latent_op_beta, batch_size, num_angles=1001):
+        if isinstance(gen, DataParallel):
+            z_dim = gen.module.z_dim
+            num_classes = gen.module.num_classes
+            conditional_strategy = dis.module.conditional_strategy
+        else:
+            z_dim = gen.z_dim
+            num_classes = gen.num_classes
+            conditional_strategy = dis.conditional_strategy
+
         dataset_iter = iter(dataloader)
         n_batches = int(math.ceil(float(num_generate) / float(batch_size)))
+        lt_sampler = latent_sampler(prior, z_dim, num_classes, self.device)
+        grad_reg = gradient_regularizer(gen, dis, conditional_strategy, latent_op_step, 1.0, latent_op_alpha, latent_op_beta)
+
         for i in tqdm(range(n_batches)):
             real_images, real_labels = next(dataset_iter)
             real_images, real_labels = real_images.to(self.device), real_labels.to(self.device)
-            fake_images = self.generate_images(gen, dis, truncated_factor, prior, latent_op, latent_op_step,
-                                               latent_op_alpha, latent_op_beta, batch_size)
+            fake_images = self.generate_images(gen, lt_sampler, grad_reg, batch_size, truncated_factor, latent_op)
 
             real_embed = self.inception_softmax(real_images).detach().cpu().numpy()
             fake_embed = self.inception_softmax(fake_images).detach().cpu().numpy()

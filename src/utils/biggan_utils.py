@@ -27,8 +27,6 @@ SOFTWARE.
 
 import random
 
-from utils.sample import sample_latents
-
 import torch
 
 

@@ -12,7 +12,7 @@ from metrics.IS import evaluator
 
 
 
-def prepare_inception_moments(dataloader, eval_mode, generator, inception_model, splits, run_name, logger, device):
+def prepare_inception_moments(dataloader, eval_mode, gen, inception_model, lt_sampler, grad_reg, splits, run_name, logger, device):
     dataset_name = dataloader.dataset.dataset_name
     inception_model.eval()
 
@@ -25,17 +25,15 @@ def prepare_inception_moments(dataloader, eval_mode, generator, inception_model,
     else:
         logger.info('Calculate moments of {} dataset'.format(eval_mode))
         mu, sigma = calculate_activation_statistics(data_loader=dataloader,
-                                                    generator=generator,
-                                                    discriminator=None,
+                                                    gen=gen,
                                                     inception_model=inception_model,
-                                                    n_generate=None,
+                                                    num_generate=None,
+                                                    lt_sampler=lt_sampler,
+                                                    grad_reg=grad_reg,
                                                     truncated_factor=None,
-                                                    prior=None,
                                                     is_generate=False,
                                                     latent_op=False,
                                                     latent_op_step=None,
-                                                    latent_op_alpha=None,
-                                                    latent_op_beta=None,
                                                     device=device,
                                                     tqdm_disable=False,
                                                     run_name=run_name)

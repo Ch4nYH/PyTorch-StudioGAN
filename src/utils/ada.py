@@ -432,3 +432,15 @@ def initialize_ada(prev_ada_p, ada_target, ada_length, device):
         ada_aug_p = 0.0
     ada_aug_step = ada_target/ada_length
     return ada_augment, ada_aug_p, ada_aug_step
+
+def update_ada(dis_out_real, ada_augment, ada_target, ada_aug_step, ada_aug_p, batch_size, device):
+    ada_aug_data = torch.tensor((torch.sign(dis_out_real).sum().item(), dis_out_real.shape[0]), device = device)
+    ada_augment += ada_aug_data
+    if ada_augment[1] > (batch_size*4 - 1):
+        authen_out_signs, num_outputs = ada_augment.tolist()
+        r_t_stat = authen_out_signs/num_outputs
+        sign = 1 if r_t_stat > ada_target else -1
+        ada_aug_p += sign*ada_aug_step*num_outputs
+        ada_aug_p = min(1.0, max(0.0, ada_aug_p))
+        ada_augment.mul_(0.0)
+    return ada_augment, ada_aug_p

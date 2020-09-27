@@ -19,8 +19,8 @@ from itertools import chain
 from collections import defaultdict
 
 from metrics.FID import generate_images
-from utils.sample import sample_latents
-from utils.losses import latent_optimise
+from utils.sample import latent_sampler
+from utils.losses import gradient_regularizer
 
 import torch
 import torch.nn.functional as F
@@ -37,12 +37,10 @@ class dummy_context_mgr():
 
 
 class change_model_mode(object):
-    def __init__(self, dis, gen, gen_copy, standing_statistics, standing_step, prior, batch_size, z_dim, num_classes, device):
+    def __init__(self, dis, gen, gen_copy, prior, batch_size, z_dim, num_classes, device):
         self.dis = dis
         self.gen = gen
         self.gen_copy = gen_copy
-        self.standing_statistics = standing_statistics
-        self.standing_step = standing_step
         self.prior = prior
         self.batch_size = batch_size
         self.z_dim = z_dim
@@ -51,33 +49,49 @@ class change_model_mode(object):
 
 
     def train(self):
-        self.dis.train()
         self.gen.train()
+        self.dis.train()
         if self.gen_copy is not None:
             self.gen_copy.train()
 
 
-    def eval(self, temp=False):
-        if temp:
-            self.gen.eval()
-            self.gen.apply(set_deterministic_op_train)
-            if self.gen_copy is not None:
+    def eval(self, standing_statistics, standing_step):
+        if standing_statistics:
+            self.dis.eval()
+            self.dis.apply(set_deterministic_op_train)
+            if self.gen_copy is None:
+                self.gen.apply(set_deterministic_op_train)
+                apply_accumulate_stat(self.gen, standing_step, self.prior, self.batch_size, self.z_dim, self.num_classes, self.device)
+            else:
+                self.gen_copy.apply(set_deterministic_op_train)
+                apply_accumulate_stat(self.gen_copy, self.standing_step, self.prior, self.batch_size, self.z_dim, self.num_classes, self.device)
+        else:
+            self.dis.eval()
+            self.dis.apply(set_deterministic_op_train)
+            if self.gen_copy is None:
+                self.gen.apply(set_deterministic_op_train)
+                self.gen.eval()
+                self.gen.apply(set_bn_train)
+            else:
+                self.gen_copy.apply(set_deterministic_op_train)
                 self.gen_copy.eval()
                 self.gen_copy.apply(set_bn_train)
-                self.gen_copy.apply(set_deterministic_op_train)
-        else:
-            if self.standing_statistics:
-                apply_accumulate_stat(self.gen, self.standing_step, self.prior, self.batch_size, self.z_dim, self.num_classes, self.device)
+
+
+    def save(self):
+        self.gen.eval()
+        self.dis.eval()
+        if self.gen_copy is not None:
+            self.gen_copy.eval()
+            if isinstance(self.gen, DataParallel):
+                return self.gen.module, self.dis.module, self.gen_copy.module
             else:
-                self.gen.eval()
-            self.gen.apply(set_deterministic_op_train)
-            if self.gen_copy is not None:
-                if self.standing_statistics:
-                    apply_accumulate_stat(self.gen_copy, self.standing_step, self.prior, self.batch_size, self.z_dim, self.num_classes, self.device)
-                else:
-                    self.gen_copy.eval()
-                    self.gen_copy.apply(set_bn_train)
-                self.gen_copy.apply(set_deterministic_op_train)
+                return self.gen, self.dis, self.gen_copy
+        else:
+            if isinstance(self.gen, DataParallel):
+                return self.gen.module, self.dis.module
+            else:
+                return self.gen, self.dis
 
 
 def flatten_dict(init_dict):
