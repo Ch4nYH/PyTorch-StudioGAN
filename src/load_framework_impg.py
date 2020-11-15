@@ -287,8 +287,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         
         Gen = train_eval.gen_model
         Dis = train_eval.dis_model
-        Gen.train()
-        Dis.train()
+        
         if ema:
             Gen_copy = train_eval.Gen_copy
         if isinstance(Gen, DataParallel):
@@ -318,6 +317,9 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
                 if ema:
                     Gen_copy = convert_model(Gen_copy).to(default_device)
 
+        Gen.train()
+        Dis.train()
+        
         if optimizer == "SGD":
             G_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, momentum=momentum, nesterov=nesterov)
             D_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, momentum=momentum, nesterov=nesterov)
