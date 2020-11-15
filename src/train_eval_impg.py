@@ -38,6 +38,7 @@ from torchvision import transforms
 SAVE_FORMAT = 'step={step:0>3}-Inception_mean={Inception_mean:<.4}-Inception_std={Inception_std:<.4}-FID={FID:<.5}.pth'
 
 LOG_FORMAT = (
+    "Round: {prune_round} " 
     "Step: {step:>7} "
     "Progress: {progress:<.1%} "
     "Elapsed: {elapsed} "
