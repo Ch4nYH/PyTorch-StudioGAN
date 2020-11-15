@@ -31,8 +31,7 @@ from torch.nn import DataParallel
 from torch.utils.tensorboard import SummaryWriter
 
 import copy
-import torch.nn as nn
-import torch.nn.utils.prune as prune
+from utils.prune import pruning_generate, rewind_weight, see_remain_rate
 
 
 RUN_NAME_FORMAT = (
@@ -141,31 +140,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
     else:
         raise NotImplementedError
 
-    if checkpoint_folder is not None:
-        when = "current" if load_current is True else "best"
-        if not exists(abspath(checkpoint_folder)):
-            raise NotADirectoryError
-        checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
-        g_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=G-{when}-weights-step*.pth".format(when=when)))[0]
-        d_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=D-{when}-weights-step*.pth".format(when=when)))[0]
-        Gen, G_optimizer, trained_seed, run_name, step, prev_ada_p = load_checkpoint(Gen, G_optimizer, g_checkpoint_dir)
-        Dis, D_optimizer, trained_seed, run_name, step, prev_ada_p, best_step, best_fid, best_fid_checkpoint_path =\
-            load_checkpoint(Dis, D_optimizer, d_checkpoint_dir, metric=True)
-        logger = make_logger(run_name, None)
-        if ema:
-            g_ema_checkpoint_dir = glob.glob(join(checkpoint_dir, "model=G_ema-{when}-weights-step*.pth".format(when=when)))[0]
-            Gen_copy = load_checkpoint(Gen_copy, None, g_ema_checkpoint_dir, ema=True)
-            Gen_ema.source, Gen_ema.target = Gen, Gen_copy
-
-        writer = SummaryWriter(log_dir=join('./logs', run_name))
-        if train_config['train']:
-            assert seed == trained_seed, "seed for sampling random numbers should be same!"
-        logger.info('Generator checkpoint is {}'.format(g_checkpoint_dir))
-        logger.info('Discriminator checkpoint is {}'.format(d_checkpoint_dir))
-        if freeze_layers > -1 :
-            prev_ada_p, step, best_step, best_fid, best_fid_checkpoint_path = None, 0, 0, None, None
-    else:
-        checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
+    checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
 
     if n_gpus > 1:
         Gen = DataParallel(Gen, output_device=default_device)
@@ -310,4 +285,61 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
 
         Gen = train_eval.gen_model
         Dis = train_eval.dis_model
+        if ema:
+            Gen_copy = train_eval.Gen_copy
+        if isinstance(Gen, DataParallel):
+            Gen = Gen.module
+            Dis = Dis.module
+            if ema:
+                Gen_copy = Gen_copy.module
+
+        pruning_generate(Gen, 0.2)
+        if ema:
+            pruning_generate(Gen_copy)
+        Dis.load_state_dict(initial_D_weight)
+        gen_weight = Gen.state_dict()
+        gen_orig_weight = rewind_weight(initial_G_weight, gen_weight.keys())
+        gen_weight.update(gen_orig_weight)
+        assert id(gen_orig_weight) != id(gen_weight)
+        Gen.load_state_dict(gen_weight)
         
+        if ema:
+            Gen_ema = ema_(Gen, Gen_copy, ema_decay, ema_start)
+        
+
+        if n_gpus > 1:
+            Gen = DataParallel(Gen, output_device=default_device)
+            Dis = DataParallel(Dis, output_device=default_device)
+            if ema:
+                Gen_copy = DataParallel(Gen_copy, output_device=default_device)
+
+            if synchronized_bn:
+                Gen = convert_model(Gen).to(default_device)
+                Dis = convert_model(Dis).to(default_device)
+                if ema:
+                    Gen_copy = convert_model(Gen_copy).to(default_device)
+
+        if optimizer == "SGD":
+            G_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, momentum=momentum, nesterov=nesterov)
+            D_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, momentum=momentum, nesterov=nesterov)
+        elif optimizer == "RMSprop":
+            G_optimizer = torch.optim.RMSprop(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, momentum=momentum, alpha=alpha)
+            D_optimizer = torch.optim.RMSprop(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, momentum=momentum, alpha=alpha)
+        elif optimizer == "Adam":
+            G_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, [beta1, beta2], eps=1e-6)
+            D_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, [beta1, beta2], eps=1e-6)
+        else:
+            raise NotImplementedError
+
+        prev_ada_p, step, best_step, best_fid, best_fid_checkpoint_path = None, 0, 0, None, None
+
+
+        if mu is not None:
+            mu, sigma = prepare_inception_moments(dataloader=eval_dataloader,
+                                                generator=Gen,
+                                                eval_mode=eval_type,
+                                                inception_model=inception_model,
+                                                splits=1,
+                                                run_name=run_name,
+                                                logger=logger,
+                                                device=default_device)
