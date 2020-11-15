@@ -297,7 +297,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
  
         Gen, gen_masks = pruning_generate_sn(Gen, 0.2, initial_G_weight)
         if ema:
-            Gen_copy, _ = pruning_generate(Gen_copy, 0.2, initial_G_weight)
+            Gen_copy, _ = pruning_generate_sn(Gen_copy, 0.2, initial_G_weight)
         Dis.load_state_dict(initial_D_weight)
         
         if ema:
