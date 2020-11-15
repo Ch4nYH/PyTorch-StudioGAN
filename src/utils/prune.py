@@ -10,6 +10,7 @@ def pruning_generate(model,px):
             parameters_to_prune.append((m,'weight'))
 
     parameters_to_prune = tuple(parameters_to_prune[:1])
+    print(parameters_to_prune)
     prune.global_unstructured(
         parameters_to_prune,
         pruning_method=prune.L1Unstructured,
