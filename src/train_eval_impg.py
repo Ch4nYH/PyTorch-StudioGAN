@@ -539,7 +539,7 @@ class Train_Eval(object):
         d_checkpoint_output_path = join(self.checkpoint_dir, "model=D-{prune}-{when}-weights-step={step}.pth".format(when=when, step=str(step), prune=self.prune_round))
 
         if when == "best":
-            if len(glob.glob(join(self.checkpoint_dir,"model=G-{prune}-current-weights-step*.pth".format(when=when)))) >= 1:
+            if len(glob.glob(join(self.checkpoint_dir,"model=G-{prune}-current-weights-step*.pth".format(when=when, prune=self.prune_round)))) >= 1:
                 find_and_remove(glob.glob(join(self.checkpoint_dir,"model=G-{prune}-current-weights-step*.pth".format(when=when, prune=self.prune_round)))[0])
                 find_and_remove(glob.glob(join(self.checkpoint_dir,"model=D-{prune}-current-weights-step*.pth".format(when=when, prune=self.prune_round)))[0])
 
