@@ -293,7 +293,6 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
             Dis = Dis.module
             if ema:
                 Gen_copy = Gen_copy.module
-        pdb.set_trace() 
         pruning_generate(Gen, 0.2)
         if ema:
             pruning_generate(Gen_copy)
