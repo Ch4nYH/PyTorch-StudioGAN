@@ -103,7 +103,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
     logger.info('Modules are located on models.{architecture}'.format(architecture=architecture))
     Gen = module.Generator(z_dim, shared_dim, img_size, g_conv_dim, g_spectral_norm, attention, attention_after_nth_gen_block, activation_fn,
                            conditional_strategy, num_classes, g_init, G_depth, mixed_precision).to(default_device)
-
+    pruning_generate(Gen, 0.2)
     Dis = module.Discriminator(img_size, d_conv_dim, d_spectral_norm, attention, attention_after_nth_dis_block, activation_fn, conditional_strategy,
                                hypersphere_dim, num_classes, nonlinear_embed, normalize_embed, d_init, D_depth, mixed_precision).to(default_device)
 
