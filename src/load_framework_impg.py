@@ -11,6 +11,7 @@ import PIL
 import random
 import warnings
 from os.path import dirname, abspath, exists, join
+import pdb
 
 from data_utils.load_dataset import *
 from metrics.inception_network import InceptionV3
@@ -282,7 +283,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         if train_config['frequency_analysis']:
             train_eval.run_frequency_analysis(num_images=len(train_dataset)//num_classes, standing_statistics=standing_statistics, standing_step=standing_step)
 
-
+        
         Gen = train_eval.gen_model
         Dis = train_eval.dis_model
         if ema:
@@ -292,7 +293,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
             Dis = Dis.module
             if ema:
                 Gen_copy = Gen_copy.module
-
+        pdb.set_trace() 
         pruning_generate(Gen, 0.2)
         if ema:
             pruning_generate(Gen_copy)
