@@ -9,7 +9,7 @@ def pruning_generate(model,px):
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
             parameters_to_prune.append((m,'weight'))
 
-    parameters_to_prune = tuple(parameters_to_prune)
+    parameters_to_prune = tuple(parameters_to_prune[0])
     prune.global_unstructured(
         parameters_to_prune,
         pruning_method=prune.L1Unstructured,
