@@ -32,7 +32,7 @@ from torch.nn import DataParallel
 from torch.utils.tensorboard import SummaryWriter
 
 import copy
-from utils.prune import pruning_generate, rewind_weight, see_remain_rate
+from utils.prune import pruning_generate, rewind_weight, see_remain_rate, pruning_generate_sn
 
 
 RUN_NAME_FORMAT = (
@@ -103,7 +103,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
     logger.info('Modules are located on models.{architecture}'.format(architecture=architecture))
     Gen = module.Generator(z_dim, shared_dim, img_size, g_conv_dim, g_spectral_norm, attention, attention_after_nth_gen_block, activation_fn,
                            conditional_strategy, num_classes, g_init, G_depth, mixed_precision).to(default_device)
-    pruning_generate(Gen, 0.2)
+
     Dis = module.Discriminator(img_size, d_conv_dim, d_spectral_norm, attention, attention_after_nth_dis_block, activation_fn, conditional_strategy,
                                hypersphere_dim, num_classes, nonlinear_embed, normalize_embed, d_init, D_depth, mixed_precision).to(default_device)
 
@@ -170,11 +170,12 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
     else:
         mu, sigma, inception_model = None, None, None
 
-
+    gen_masks = None
     for round in range(10):
 
         train_eval = Train_Eval(
             prune_round = round, 
+            gen_masks = gen_masks,
             run_name=run_name,
             best_step=best_step,
             dataset_name=dataset_name,
@@ -293,15 +294,11 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
             Dis = Dis.module
             if ema:
                 Gen_copy = Gen_copy.module
-        pruning_generate(Gen, 0.2)
+ 
+        Gen, gen_masks = pruning_generate_sn(Gen, 0.2, initial_G_weight)
         if ema:
-            pruning_generate(Gen_copy)
+            Gen_copy, _ = pruning_generate(Gen_copy, 0.2, initial_G_weight)
         Dis.load_state_dict(initial_D_weight)
-        gen_weight = Gen.state_dict()
-        gen_orig_weight = rewind_weight(initial_G_weight, gen_weight.keys())
-        gen_weight.update(gen_orig_weight)
-        assert id(gen_orig_weight) != id(gen_weight)
-        Gen.load_state_dict(gen_weight)
         
         if ema:
             Gen_ema = ema_(Gen, Gen_copy, ema_decay, ema_start)

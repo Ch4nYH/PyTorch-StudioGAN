@@ -26,6 +26,7 @@ from utils.losses import calc_derv4gp, calc_derv4dra, calc_derv, latent_optimise
 from utils.losses import Conditional_Contrastive_loss, Proxy_NCA_loss, NT_Xent_loss
 from utils.diff_aug import DiffAugment
 from utils.cr_diff_aug import CR_DiffAug
+from utils.prune import see_remain_rate_orig
 
 import torch
 import torch.nn as nn
@@ -35,10 +36,12 @@ import torchvision
 from torchvision import transforms
 
 
+
 SAVE_FORMAT = 'step={step:0>3}-Inception_mean={Inception_mean:<.4}-Inception_std={Inception_std:<.4}-FID={FID:<.5}.pth'
 
 LOG_FORMAT = (
     "Round: {prune_round} " 
+    "Sparsity: {sparsity} " 
     "Step: {step:>7} "
     "Progress: {progress:<.1%} "
     "Elapsed: {elapsed} "
@@ -65,7 +68,7 @@ def set_temperature(conditional_strategy, tempering_type, start_temperature, end
 
 
 class Train_Eval(object):
-    def __init__(self, prune_round, run_name, best_step, dataset_name, eval_type, logger, writer, n_gpus, gen_model, dis_model, inception_model,
+    def __init__(self, prune_round, gen_masks, run_name, best_step, dataset_name, eval_type, logger, writer, n_gpus, gen_model, dis_model, inception_model,
                  Gen_copy, Gen_ema, train_dataset, eval_dataset, train_dataloader, eval_dataloader, freeze_layers, conditional_strategy,
                  pos_collected_numerator, z_dim, num_classes, hypersphere_dim, d_spectral_norm, g_spectral_norm, G_optimizer, D_optimizer,
                  batch_size, g_steps_per_iter, d_steps_per_iter, accumulation_steps, total_step, G_loss, D_loss, contrastive_lambda, margin,
@@ -77,6 +80,7 @@ class Train_Eval(object):
                  best_fid_checkpoint_path, mixed_precision, train_config, model_config,):
 
         self.prune_round = prune_round
+        self.gen_masks = gen_masks
         self.run_name = run_name
         self.best_step = best_step
         self.dataset_name = dataset_name
@@ -462,6 +466,11 @@ class Train_Eval(object):
                     else:
                         gen_acml_loss.backward()
 
+                if self.gen_masks is not None:
+                    for k, m in enumerate(self.gen_model.modules()):
+                        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                            m.weight_orig.grad.mul_(self.gen_masks[k])
+
                 if self.mixed_precision:
                     self.scaler.step(self.G_optimizer)
                     self.scaler.update()
@@ -475,8 +484,10 @@ class Train_Eval(object):
                 step_count += 1
 
             if step_count % self.print_every == 0 and self.logger:
+                sparsity = see_remain_rate_orig(self.gen_model)
                 log_message = LOG_FORMAT.format(
                                                 prune_round=self.prune_round,
+                                                sparsity=sparsity,
                                                 step=step_count,
                                                 progress=step_count/total_step,
                                                 elapsed=elapsed_time(self.start_time),
