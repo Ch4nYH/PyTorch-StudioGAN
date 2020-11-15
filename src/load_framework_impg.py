@@ -287,6 +287,8 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         
         Gen = train_eval.gen_model
         Dis = train_eval.dis_model
+        Gen.train()
+        Dis.train()
         if ema:
             Gen_copy = train_eval.Gen_copy
         if isinstance(Gen, DataParallel):
