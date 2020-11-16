@@ -44,7 +44,7 @@
         "beta2": 0.999,
         "g_steps_per_iter": 1,
         "d_steps_per_iter": 5,
-        "total_step": 100
+        "total_step": 50000
       },
   
       "loss_function": {
@@ -105,7 +105,7 @@
   
         "ema": true,
         "ema_decay": 0.9999,
-        "ema_start": 10
+        "ema_start": 1000
       }
     }
   }
