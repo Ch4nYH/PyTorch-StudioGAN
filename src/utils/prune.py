@@ -70,6 +70,8 @@ def pruning_generate_sn(model, px, initial_weight):
     zero_flag = False
     masks = OrderedDict()
     for k, m in enumerate(model.modules()):
+        print(k)
+        print(type(m))
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
             try:
                 weight_copy = m.weight_orig.data.abs().clone()
@@ -77,13 +79,11 @@ def pruning_generate_sn(model, px, initial_weight):
                 weight_copy = m.weight.data.abs().clone()
             mask = weight_copy.gt(thre).float()
             masks[k] = mask
-            print("{}: {}, {}".format(k, m, mask.shape))
             pruned = pruned + mask.numel() - torch.sum(mask)
             m.weight_orig.data.mul_(mask)
             if int(torch.sum(mask)) == 0:
                 zero_flag = True
-            print('layer index: {:d} \t total params: {:d} \t remaining params: {:d}'.
-                format(k, mask.numel(), int(torch.sum(mask))))
+
     print('Total conv params: {}, Pruned conv params: {}, Pruned ratio: {}'.format(total, pruned, pruned / total))
     # Load initial weights back
     model.load_state_dict(initial_weight)
