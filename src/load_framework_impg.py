@@ -285,24 +285,43 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
             train_eval.run_frequency_analysis(num_images=len(train_dataset)//num_classes, standing_statistics=standing_statistics, standing_step=standing_step)
 
         
-        
         Gen = train_eval.gen_model
         Dis = train_eval.dis_model
-
-        toggle_grad(Gen, True, freeze_layers=-1)
-        toggle_grad(Dis, True, freeze_layers=-1)
         
         if ema:
             Gen_copy = train_eval.Gen_copy
-        
-        Gen, gen_masks = pruning_generate_sn(Gen, 0.2, initial_G_weight)
+        if isinstance(Gen, DataParallel):
+            parallel = True
+            Gen = Gen.module
+            Dis = Dis.module
+            if ema:
+                Gen_copy = Gen_copy.module
+        else:
+            parallel = False
+
+        Gen, gen_masks = pruning_generate_sn(Gen, 0.2, initial_G_weight, parllel)
         if ema:
-            Gen_copy, _ = pruning_generate_sn(Gen_copy, 0.2, initial_G_weight)
+            Gen_copy, _ = pruning_generate_sn(Gen_copy, 0.2, initial_G_weight, parallel)
         Dis.load_state_dict(initial_D_weight)
         
         if ema:
             Gen_ema = ema_(Gen, Gen_copy, ema_decay, ema_start)
         
+
+        if n_gpus > 1:
+            Gen = DataParallel(Gen, output_device=default_device)
+            Dis = DataParallel(Dis, output_device=default_device)
+            if ema:
+                Gen_copy = DataParallel(Gen_copy, output_device=default_device)
+
+            if synchronized_bn:
+                Gen = convert_model(Gen).to(default_device)
+                Dis = convert_model(Dis).to(default_device)
+                if ema:
+                    Gen_copy = convert_model(Gen_copy).to(default_device)
+
+        toggle_grad(Gen, True, freeze_layers=-1)
+        toggle_grad(Dis, True, freeze_layers=-1)
         if optimizer == "SGD":
             G_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, momentum=momentum, nesterov=nesterov)
             D_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, momentum=momentum, nesterov=nesterov)

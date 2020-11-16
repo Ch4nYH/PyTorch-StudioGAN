@@ -38,7 +38,7 @@ def rewind_weight(model_dict, target_model_dict_keys):
     return new_dict
 
 
-def pruning_generate_sn(model, px, initial_weight):
+def pruning_generate_sn(model, px, initial_weight, parallel):
     total = 0
     total_nonzero = 0
     for m in model.modules():
@@ -77,7 +77,10 @@ def pruning_generate_sn(model, px, initial_weight):
             except:
                 weight_copy = m.weight.data.abs().clone()
             mask = weight_copy.gt(thre).float()
-            masks[k] = mask
+            if parallel:
+                masks[k + 1] = mask
+            else:
+                masks[k] = mask
             pruned = pruned + mask.numel() - torch.sum(mask)
             m.weight_orig.data.mul_(mask)
             if int(torch.sum(mask)) == 0:
