@@ -43,10 +43,12 @@ def pruning_generate_sn(model, px, initial_weight, parallel):
     total_nonzero = 0
     for m in model.modules():
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-            total += m.weight_orig.data.numel()
+            
             try:
+                total += m.weight_orig.data.numel()
                 mask = m.weight_orig.data.abs().clone().gt(0).float().cuda()
             except:
+                total += m.weight.data.numel()
                 mask = m.weight.data.abs().clone().gt(0).float().cuda()
             total_nonzero += torch.sum(mask)
     conv_weights = torch.zeros(total)
@@ -82,7 +84,10 @@ def pruning_generate_sn(model, px, initial_weight, parallel):
             else:
                 masks[k] = mask
             pruned = pruned + mask.numel() - torch.sum(mask)
-            m.weight_orig.data.mul_(mask)
+            try:
+                m.weight_orig.data.mul_(mask)
+            except:
+                m.weight.data.mul_(mask)
             if int(torch.sum(mask)) == 0:
                 zero_flag = True
 
