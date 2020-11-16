@@ -285,8 +285,12 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
             train_eval.run_frequency_analysis(num_images=len(train_dataset)//num_classes, standing_statistics=standing_statistics, standing_step=standing_step)
 
         
+        
         Gen = train_eval.gen_model
         Dis = train_eval.dis_model
+
+        toggle_grad(Gen, True, freeze_layers=-1)
+        toggle_grad(Dis, True, freeze_layers=-1)
         
         if ema:
             Gen_copy = train_eval.Gen_copy
@@ -317,8 +321,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
                 if ema:
                     Gen_copy = convert_model(Gen_copy).to(default_device)
 
-        toggle_grad(Gen, True, freeze_layers=-1)
-        toggle_grad(Dis, True, freeze_layers=-1)
+        
         if optimizer == "SGD":
             G_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, momentum=momentum, nesterov=nesterov)
             D_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, momentum=momentum, nesterov=nesterov)

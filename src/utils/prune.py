@@ -77,6 +77,7 @@ def pruning_generate_sn(model, px, initial_weight):
                 weight_copy = m.weight.data.abs().clone()
             mask = weight_copy.gt(thre).float()
             masks[k] = mask
+            print("{}: {}, {}".format(k, m, mask.shape))
             pruned = pruned + mask.numel() - torch.sum(mask)
             m.weight_orig.data.mul_(mask)
             if int(torch.sum(mask)) == 0:
