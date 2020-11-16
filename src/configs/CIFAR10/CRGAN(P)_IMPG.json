@@ -1,9 +1,9 @@
-{ 
-    "data_processing":{
-      "dataset_name": "tiny_imagenet",
-      "data_path": "./data/TINY_ILSVRC2012",
-      "img_size": 64,
-      "num_classes": 200,
+{
+    "data_processing":{ 
+      "dataset_name": "cifar10",
+      "data_path": "./data/cifar10",
+      "img_size": 32,
+      "num_classes": 10,
       "batch_size4prcsing": 256,
       "chunk_size": 500,
       "compression": false
@@ -21,29 +21,29 @@
         "d_spectral_norm": true,
         "activation_fn": "ReLU",
         "attention": true,
-        "attention_after_nth_gen_block": 3,
+        "attention_after_nth_gen_block": 2,
         "attention_after_nth_dis_block": 1,
-        "z_dim": 100,
+        "z_dim": 80,
         "shared_dim": 128,
-        "g_conv_dim": 80,
-        "d_conv_dim": 80,
-        "G_depth":"N/A",
-        "D_depth":"N/A"
-      },
+        "g_conv_dim": 96,
+        "d_conv_dim": 96,
+        "G_depth": "N/A",
+        "D_depth": "N/A"
+      },  
   
       "optimization": {
         "optimizer": "Adam",
-        "batch_size": 1024,
-        "accumulation_steps": 1,
-        "d_lr": 0.0004,
-        "g_lr": 0.0001,
+        "batch_size": 64,
+        "accumulation_steps": 1, 
+        "d_lr": 0.0002,
+        "g_lr": 0.0002,
         "momentum": "N/A",
         "nesterov": "N/A",
         "alpha": "N/A",
-        "beta1": 0.0,
+        "beta1": 0.5,
         "beta2": 0.999,
         "g_steps_per_iter": 1,
-        "d_steps_per_iter": 1,
+        "d_steps_per_iter": 5,
         "total_step": 50000
       },
   
@@ -105,7 +105,7 @@
   
         "ema": true,
         "ema_decay": 0.9999,
-        "ema_start": 20000
+        "ema_start": 1000
       }
     }
   }
