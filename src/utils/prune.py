@@ -92,10 +92,14 @@ def pruning_generate_sn(model, px, initial_weight, parallel):
     # Apply map
     for k, m in enumerate(model.modules()):
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            if parallel:
+                index = k + 1
+            else:
+                index = k
             try:
-                m.weight_orig.data.mul_(masks[k])
+                m.weight_orig.data.mul_(masks[index])
             except:
-                m.weight.data.mul_(masks[k])
+                m.weight.data.mul_(masks[index])
 
     return model, masks
 
