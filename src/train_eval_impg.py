@@ -468,6 +468,7 @@ class Train_Eval(object):
 
                 if self.gen_masks is not None:
                     for k, m in enumerate(self.gen_model.modules()):
+                        print(k)
                         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
                             m.weight_orig.grad.mul_(self.gen_masks[k])
 
