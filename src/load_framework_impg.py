@@ -303,20 +303,6 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         if ema:
             Gen_ema = ema_(Gen, Gen_copy, ema_decay, ema_start)
         
-
-        if n_gpus > 1:
-            Gen = DataParallel(Gen, output_device=default_device)
-            Dis = DataParallel(Dis, output_device=default_device)
-            if ema:
-                Gen_copy = DataParallel(Gen_copy, output_device=default_device)
-
-            if synchronized_bn:
-                Gen = convert_model(Gen).to(default_device)
-                Dis = convert_model(Dis).to(default_device)
-                if ema:
-                    Gen_copy = convert_model(Gen_copy).to(default_device)
-
-        
         if optimizer == "SGD":
             G_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, momentum=momentum, nesterov=nesterov)
             D_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, momentum=momentum, nesterov=nesterov)
