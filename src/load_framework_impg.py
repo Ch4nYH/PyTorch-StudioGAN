@@ -294,12 +294,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         
         if ema:
             Gen_copy = train_eval.Gen_copy
-        if isinstance(Gen, DataParallel):
-            Gen = Gen.module
-            Dis = Dis.module
-            if ema:
-                Gen_copy = Gen_copy.module
- 
+        
         Gen, gen_masks = pruning_generate_sn(Gen, 0.2, initial_G_weight)
         if ema:
             Gen_copy, _ = pruning_generate_sn(Gen_copy, 0.2, initial_G_weight)

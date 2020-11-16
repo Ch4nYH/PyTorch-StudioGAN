@@ -70,8 +70,7 @@ def pruning_generate_sn(model, px, initial_weight):
     zero_flag = False
     masks = OrderedDict()
     for k, m in enumerate(model.modules()):
-        print(k)
-        print(type(m))
+        
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
             try:
                 weight_copy = m.weight_orig.data.abs().clone()
