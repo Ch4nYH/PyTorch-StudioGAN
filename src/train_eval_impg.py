@@ -484,7 +484,10 @@ class Train_Eval(object):
                 step_count += 1
 
             if step_count % self.print_every == 0 and self.logger:
-                sparsity = see_remain_rate_orig(self.gen_model)
+                if self.gen_masks is not None:
+                    sparsity = see_remain_rate_orig(self.gen_model)
+                else:
+                    sparsity = 100
                 log_message = LOG_FORMAT.format(
                                                 prune_round=self.prune_round,
                                                 sparsity=sparsity,
