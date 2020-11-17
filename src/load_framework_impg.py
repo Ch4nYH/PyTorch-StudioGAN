@@ -174,7 +174,15 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
 
     start_round = 0
     if train_config['checkpoint_folder'] is not None:
-        
+        if isinstance(Gen, DataParallel):
+            parallel = True
+            Gen = Gen.module
+            Dis = Dis.module
+            if ema:
+                Gen_copy = Gen_copy.module
+        else:
+            parallel = False
+            
         when = "current"
         if not exists(abspath(checkpoint_folder)):
             raise NotADirectoryError
@@ -194,15 +202,6 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
 
         logger.info('Generator checkpoint is {}'.format(g_checkpoint_dir))
         logger.info('Discriminator checkpoint is {}'.format(d_checkpoint_dir))
-        
-        if isinstance(Gen, DataParallel):
-            parallel = True
-            Gen = Gen.module
-            Dis = Dis.module
-            if ema:
-                Gen_copy = Gen_copy.module
-        else:
-            parallel = False
 
         Gen, gen_masks = pruning_generate_sn(Gen, 0.2, initial_G_weight, parallel)
         if ema:
