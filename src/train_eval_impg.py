@@ -469,7 +469,10 @@ class Train_Eval(object):
                 if self.gen_masks is not None:
                     for k, m in enumerate(self.gen_model.modules()):
                         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-                            m.weight_orig.grad.mul_(self.gen_masks[k])
+                            try:
+                                m.weight_orig.grad.mul_(self.gen_masks[k])
+                            except:
+                                m.weight.grad.mul_(self.gen_masks[k])
 
                 if self.mixed_precision:
                     self.scaler.step(self.G_optimizer)

@@ -141,7 +141,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
     else:
         raise NotImplementedError
 
-    checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
+    
 
     if n_gpus > 1:
         Gen = DataParallel(Gen, output_device=default_device)
@@ -171,7 +171,92 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         mu, sigma, inception_model = None, None, None
 
     gen_masks = None
-    for round in range(10):
+
+    start_round = 0
+    if train_config['checkpoint_folder'] is not None:
+        
+        when = "current"
+        if not exists(abspath(checkpoint_folder)):
+            raise NotADirectoryError
+        checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
+        g_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=G-0-{when}-weights-step*.pth".format(when=when)))[0]
+        d_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=D-0-{when}-weights-step*.pth".format(when=when)))[0]
+        Gen, _, _, run_name, _, _ = load_checkpoint(Gen, G_optimizer, g_checkpoint_dir)
+        Dis, _, _, run_name, _, _, _, _, _ =\
+            load_checkpoint(Dis, D_optimizer, d_checkpoint_dir, metric=True)
+        logger = make_logger(run_name, None)
+        if ema:
+            g_ema_checkpoint_dir = glob.glob(join(checkpoint_dir, "model=G_ema-0-{when}-weights-step*.pth".format(when=when)))[0]
+            Gen_copy = load_checkpoint(Gen_copy, None, g_ema_checkpoint_dir, ema=True)
+            Gen_ema.source, Gen_ema.target = Gen, Gen_copy
+
+        writer = SummaryWriter(log_dir=join('./logs', run_name))
+
+        logger.info('Generator checkpoint is {}'.format(g_checkpoint_dir))
+        logger.info('Discriminator checkpoint is {}'.format(d_checkpoint_dir))
+        
+        if isinstance(Gen, DataParallel):
+            parallel = True
+            Gen = Gen.module
+            Dis = Dis.module
+            if ema:
+                Gen_copy = Gen_copy.module
+        else:
+            parallel = False
+
+        Gen, gen_masks = pruning_generate_sn(Gen, 0.2, initial_G_weight, parallel)
+        if ema:
+            Gen_copy, _ = pruning_generate_sn(Gen_copy, 0.2, initial_G_weight, parallel)
+        Dis.load_state_dict(initial_D_weight)
+        
+        if ema:
+            Gen_ema = ema_(Gen, Gen_copy, ema_decay, ema_start)
+        
+
+        if n_gpus > 1:
+            Gen = DataParallel(Gen, output_device=default_device)
+            Dis = DataParallel(Dis, output_device=default_device)
+            if ema:
+                Gen_copy = DataParallel(Gen_copy, output_device=default_device)
+
+            if synchronized_bn:
+                Gen = convert_model(Gen).to(default_device)
+                Dis = convert_model(Dis).to(default_device)
+                if ema:
+                    Gen_copy = convert_model(Gen_copy).to(default_device)
+
+        toggle_grad(Gen, True, freeze_layers=-1)
+        toggle_grad(Dis, True, freeze_layers=-1)
+        if optimizer == "SGD":
+            G_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, momentum=momentum, nesterov=nesterov)
+            D_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, momentum=momentum, nesterov=nesterov)
+        elif optimizer == "RMSprop":
+            G_optimizer = torch.optim.RMSprop(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, momentum=momentum, alpha=alpha)
+            D_optimizer = torch.optim.RMSprop(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, momentum=momentum, alpha=alpha)
+        elif optimizer == "Adam":
+            G_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, [beta1, beta2], eps=1e-6)
+            D_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, [beta1, beta2], eps=1e-6)
+        else:
+            raise NotImplementedError
+
+        prev_ada_p, step, best_step, best_fid, best_fid_checkpoint_path = None, 0, 0, None, None
+
+
+        if mu is not None:
+            mu, sigma = prepare_inception_moments(dataloader=eval_dataloader,
+                                                generator=Gen,
+                                                eval_mode=eval_type,
+                                                inception_model=inception_model,
+                                                splits=1,
+                                                run_name=run_name,
+                                                logger=logger,
+                                                device=default_device)
+        start_round = 1
+    
+    else:
+        checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
+
+    for round in range(start_round, 10):
 
         train_eval = Train_Eval(
             prune_round = round, 
@@ -290,6 +375,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         
         if ema:
             Gen_copy = train_eval.Gen_copy
+
         if isinstance(Gen, DataParallel):
             parallel = True
             Gen = Gen.module
