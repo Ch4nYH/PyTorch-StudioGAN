@@ -113,6 +113,10 @@ def see_remain_rate_orig(model):
     zero_sum = 0
     for m in model.modules():
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-            sum_list = sum_list+float(m.weight_orig.nelement())
-            zero_sum = zero_sum+float(torch.sum(m.weight_orig == 0))     
+            try:
+                sum_list = sum_list+float(m.weight_orig.nelement())
+                zero_sum = zero_sum+float(torch.sum(m.weight_orig == 0))   
+            except:
+                sum_list = sum_list+float(m.weight.nelement())
+                zero_sum = zero_sum+float(torch.sum(m.weight == 0))   
     return 100*(1-zero_sum/sum_list)
