@@ -95,6 +95,8 @@ class LoadDataset(Dataset):
                                     train=self.train,
                                     download=self.download)
 
+                self.data = torch.utils.data.Subset(self.data, np.arange(int(len(self.data) * 0.1)))
+
         elif self.dataset_name == 'imagenet':
             if self.hdf5_path is not None:
                 print('Loading %s into memory...' % self.hdf5_path)
