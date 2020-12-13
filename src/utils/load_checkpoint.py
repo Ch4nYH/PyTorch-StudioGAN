@@ -24,7 +24,7 @@ def load_checkpoint(model, optimizer, filename, metric=False, ema=False):
     start_step = 0
     if ema:
         checkpoint = torch.load(filename)
-        pruning_generate(model, checkpoint['state_dict'])
+        #pruning_generate(model, checkpoint['state_dict'])
         model.load_state_dict(checkpoint['state_dict'])
         return model
     else:
@@ -32,7 +32,7 @@ def load_checkpoint(model, optimizer, filename, metric=False, ema=False):
         seed = checkpoint['seed']
         run_name = checkpoint['run_name']
         start_step = checkpoint['step']
-        pruning_generate(model, checkpoint['state_dict'])
+        #pruning_generate(model, checkpoint['state_dict'])
         model.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         ada_p = checkpoint['ada_p']
