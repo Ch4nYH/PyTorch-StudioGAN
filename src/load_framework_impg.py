@@ -186,15 +186,19 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         when = "best"
         if not exists(abspath(checkpoint_folder)):
             raise NotADirectoryError
+
+        round_ = 0
+
+
         checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
-        g_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=G-0-{when}-weights-step*.pth".format(when=when)))[0]
-        d_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=D-0-{when}-weights-step*.pth".format(when=when)))[0]
+        g_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=G-{}-{when}-weights-step*.pth".format(round_, when=when)))[0]
+        d_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=D-{}-{when}-weights-step*.pth".format(round_, when=when)))[0]
         Gen, _, _, run_name, _, _ = load_checkpoint(Gen, G_optimizer, g_checkpoint_dir)
         Dis, _, _, run_name, _, _, _, _, _ =\
             load_checkpoint(Dis, D_optimizer, d_checkpoint_dir, metric=True)
         logger = make_logger(run_name, None)
         if ema:
-            g_ema_checkpoint_dir = glob.glob(join(checkpoint_dir, "model=G_ema-0-{when}-weights-step*.pth".format(when=when)))[0]
+            g_ema_checkpoint_dir = glob.glob(join(checkpoint_dir, "model=G_ema-{}-{when}-weights-step*.pth".format(round_, when=when)))[0]
             Gen_copy = load_checkpoint(Gen_copy, None, g_ema_checkpoint_dir, ema=True)
             Gen_ema.source, Gen_ema.target = Gen, Gen_copy
 
