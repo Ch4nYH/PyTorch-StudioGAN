@@ -183,7 +183,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         else:
             parallel = False
             
-        when = "current"
+        when = "best"
         if not exists(abspath(checkpoint_folder)):
             raise NotADirectoryError
         checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)

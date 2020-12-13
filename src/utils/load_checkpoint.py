@@ -8,7 +8,15 @@
 import os
 
 import torch
+import torch.nn as nn
+import torch.nn.utils.prune as prune
 
+def pruning_generate(model, state_dict):
+
+    parameters_to_prune =[]
+    for (name, m) in model.named_modules():
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            m = prune.custom_from_mask(m, name = 'weight', mask = state_dict[name + ".weight_mask"])
 
 
 def load_checkpoint(model, optimizer, filename, metric=False, ema=False):
@@ -16,6 +24,7 @@ def load_checkpoint(model, optimizer, filename, metric=False, ema=False):
     start_step = 0
     if ema:
         checkpoint = torch.load(filename)
+        pruning_generate(model, checkpoint['state_dict'])
         model.load_state_dict(checkpoint['state_dict'])
         return model
     else:
@@ -23,6 +32,7 @@ def load_checkpoint(model, optimizer, filename, metric=False, ema=False):
         seed = checkpoint['seed']
         run_name = checkpoint['run_name']
         start_step = checkpoint['step']
+        pruning_generate(model, checkpoint['state_dict'])
         model.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
         ada_p = checkpoint['ada_p']
