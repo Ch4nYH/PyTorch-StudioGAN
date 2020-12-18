@@ -111,7 +111,7 @@ def pruning_generate_sn(model, px, initial_weight, parallel):
 def pruning_generate_extract(model, checkpoint, initial_weight, parallel):
     zero_flag = False
     masks = OrderedDict()
-    keys = model.state_dict().keys()
+    keys = list(odel.state_dict().keys())
     for k, m in enumerate(model.modules()):
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
             mask = checkpoint[keys[k]]
