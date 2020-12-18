@@ -46,7 +46,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
                    d_spectral_norm, activation_fn, attention, attention_after_nth_gen_block, attention_after_nth_dis_block, z_dim,
                    shared_dim, g_conv_dim, d_conv_dim, G_depth, D_depth, optimizer, batch_size, d_lr, g_lr, momentum, nesterov, alpha,
                    beta1, beta2, total_step, adv_loss, cr, g_init, d_init, random_flip_preprocessing, prior, truncated_factor,
-                   ema, ema_decay, ema_start, synchronized_bn, mixed_precision, hdf5_path_train, train_config, model_config, masks_path, **_):
+                   ema, ema_decay, ema_start, synchronized_bn, mixed_precision, hdf5_path_train, train_config, model_config, mask_path, mask_round, **_):
     
     assert seed != 0, "Must specify a seed"
     if seed == 0:
@@ -256,10 +256,10 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
 
 
-    if masks_path is not None:
+    if mask_path is not None:
         when = 'best'
-        g_checkpoint_dir = glob.glob(join(masks_path,"model=G-{when}-weights-step*.pth".format(when=when)))[0]
-        d_checkpoint_dir = glob.glob(join(masks_path,"model=D-{when}-weights-step*.pth".format(when=when)))[0]
+        g_checkpoint_dir = glob.glob(join(mask_path,"model=G-{}-{when}-weights-step*.pth".format(mask_round, when=when)))[0]
+        d_checkpoint_dir = glob.glob(join(mask_path,"model=D-{}-{when}-weights-step*.pth".format(mask_round, when=when)))[0]
         g_checkpoint = torch.load(g_checkpoint_dir)
         d_checkpoint = torch.load(d_checkpoint_dir)
 

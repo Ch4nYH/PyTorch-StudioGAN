@@ -47,6 +47,9 @@ def main():
     parser.add_argument('--print_every', type=int, default=100, help='control log interval')
     parser.add_argument('--save_every', type=int, default=2000, help='control evaluation and save interval')
     parser.add_argument('--eval_type', type=str, default='test', help='[train/valid/test]')
+    parser.add_argument('--mask_path', type=str, default=None)
+    parser.add_argument('--mask_round', type=int, default=None)
+
     args = parser.parse_args()
 
     if not args.train and \
@@ -82,7 +85,7 @@ def main():
                    **model_config['train']['loss_function'],
                    **model_config['train']['initialization'],
                    **model_config['train']['training_and_sampling_setting'],
-                   train_config=train_config, model_config=model_config['train'], hdf5_path_train=hdf5_path_train)
+                   train_config=train_config, model_config=model_config['train'], hdf5_path_train=hdf5_path_train, mask_path=args.mask_path, mask_round=args.mask_round)
 
 if __name__ == '__main__':
     main()
