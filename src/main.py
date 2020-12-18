@@ -47,7 +47,8 @@ def main():
     parser.add_argument('--print_every', type=int, default=100, help='control log interval')
     parser.add_argument('--save_every', type=int, default=2000, help='control evaluation and save interval')
     parser.add_argument('--eval_type', type=str, default='test', help='[train/valid/test]')
-    parser.add_argument('--sparse_masks_dir', type=str, default=None)
+    parser.add_argument('--gamma', type=float, default=1/255)
+    parser.add_argument('--steps', type=int, default=1)
     args = parser.parse_args()
 
     if not args.train and \

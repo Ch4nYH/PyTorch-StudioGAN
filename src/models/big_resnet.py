@@ -296,8 +296,11 @@ class DiscBlock(nn.Module):
 class Discriminator(nn.Module):
     """Discriminator."""
     def __init__(self, img_size, d_conv_dim, d_spectral_norm, attention, attention_after_nth_dis_block, activation_fn, conditional_strategy,
-                 hypersphere_dim, num_classes, nonlinear_embed, normalize_embed, initialize, D_depth, mixed_precision):
+                 hypersphere_dim, num_classes, nonlinear_embed, normalize_embed, initialize, D_depth, mixed_precision, gamma, steps):
         super(Discriminator, self).__init__()
+        self.gamma = gamma
+        self.steps = 1
+        self.clip = False
         d_in_dims_collection = {"32": [3] + [d_conv_dim*2, d_conv_dim*2, d_conv_dim*2],
                                 "64": [3] +[d_conv_dim*2, d_conv_dim*4, d_conv_dim*8, d_conv_dim*16],
                                 "128": [3] +[d_conv_dim, d_conv_dim*2, d_conv_dim*4, d_conv_dim*8, d_conv_dim*16],
@@ -430,9 +433,9 @@ class Discriminator(nn.Module):
                 def loss_hinge_dis(dis_out_fake):
                     return torch.mean(F.relu(1. + dis_out_fake))
 
-                steps = 1
+                steps = self.steps
                 clip = False
-                gamma = 1/255
+                gamma = self.gamma
 
                 for t in range(steps):
                     out = adv_forward(x_adv)
