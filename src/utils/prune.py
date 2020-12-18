@@ -108,31 +108,24 @@ def pruning_generate_sn(model, px, initial_weight, parallel):
 
     return model, masks
 
-def pruning_generate_extract(model, checkpoint, initial_weight, parallel):
+def pruning_generate_extract(model, checkpoint, initial_weight):
     zero_flag = False
     masks = OrderedDict()
     keys = list(model.state_dict().keys())
     for k, m in enumerate(model.modules()):
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
             mask = checkpoint[keys[k]]
-            if parallel:
-                masks[k + 1] = (mask != 0).int()
-            else:
-                masks[k] = (mask != 0).int()
+            masks[k] = (mask != 0).int()
 
     # Load initial weights back
     model.load_state_dict(initial_weight)
     # Apply map
     for k, m in enumerate(model.modules()):
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-            if parallel:
-                index = k + 1
-            else:
-                index = k
             try:
-                m.weight_orig.data.mul_(masks[index])
+                m.weight_orig.data.mul_(masks[k])
             except:
-                m.weight.data.mul_(masks[index])
+                m.weight.data.mul_(masks[k])
 
     return model, masks
 
