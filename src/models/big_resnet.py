@@ -448,7 +448,7 @@ class Discriminator(nn.Module):
                 real_output = proj + authen_output
                 
                 authen_output_fake = torch.squeeze(self.linear1(x_adv))
-                proj_fake = torch.sum(torch.mul(self.embedding(x_adv), h), 1)
+                proj_fake = torch.sum(torch.mul(self.embedding(label), x_adv), 1)
                 real_output_fake = proj_fake + authen_output_fake
 
                 fake_output = proj_fake + real_output_fake
