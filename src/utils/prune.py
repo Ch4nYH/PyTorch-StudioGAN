@@ -112,12 +112,11 @@ def pruning_generate_extract(model, checkpoint, initial_weight, parallel):
     zero_flag = False
     masks = OrderedDict()
     for k, key in enumerate(checkpoint.keys()):        
-        if 'mask' in key:
-            mask = checkpoint[key]
-            if parallel:
-                masks[k + 1] = mask
-            else:
-                masks[k] = mask
+        mask = checkpoint[key]
+        if parallel:
+            masks[k + 1] = (mask != 0).int()
+        else:
+            masks[k] = (mask != 0).int()
 
     # Load initial weights back
     model.load_state_dict(initial_weight)
