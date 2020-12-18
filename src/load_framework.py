@@ -100,7 +100,7 @@ def load_frameowrk(seed, gamma, steps, disable_debugging_API, num_workers, confi
                            conditional_strategy, num_classes, g_init, G_depth, mixed_precision).to(default_device)
 
     Dis = module.Discriminator(img_size, d_conv_dim, d_spectral_norm, attention, attention_after_nth_dis_block, activation_fn, conditional_strategy,
-                               hypersphere_dim, num_classes, nonlinear_embed, normalize_embed, d_init, D_depth, mixed_precision).to(default_device)
+                               hypersphere_dim, num_classes, nonlinear_embed, normalize_embed, d_init, D_depth, mixed_precision, gamma, steps).to(default_device)
 
     if ema:
         print('Preparing EMA for G with decay of {}'.format(ema_decay))
