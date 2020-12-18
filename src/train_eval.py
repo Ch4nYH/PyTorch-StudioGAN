@@ -613,6 +613,7 @@ class Train_Eval(object):
                                                                            num_run4PR, num_cluster4PR, beta4PR, self.truncated_factor, self.prior, self.latent_op,
                                                                            self.latent_op_step4eval, self.latent_op_alpha, self.latent_op_beta, self.default_device)
             PR_Curve = plot_pr_curve(precision, recall, self.run_name, self.logger)
+            '''
             if self.D_loss.__name__ != "loss_wgan_dis":
                 real_train_acc, fake_acc = calculate_accuracy(self.train_dataloader, generator, self.dis_model, self.D_loss, self.num_eval[self.eval_type],
                                                               self.truncated_factor, self.prior, self.latent_op, self.latent_op_step, self.latent_op_alpha,
@@ -626,8 +627,8 @@ class Train_Eval(object):
                                                        self. latent_op_beta, self.default_device, cr=self.cr, eval_generated_sample=False)
                     acc_dict = {'real_train': real_train_acc, 'real_valid': real_eval_acc, 'fake': fake_acc}
 
-                self.writer.add_scalars('Accuracy', acc_dict, step)
-
+                self.writer.add_scalars('{}/Accuracy'.format(self.prune_round), acc_dict, step)
+            '''
             if self.best_fid is None:
                 self.best_fid, self.best_step, is_best, f_beta_best, f_beta_inv_best = fid_score, step, True, f_beta, f_beta_inv
             else:
