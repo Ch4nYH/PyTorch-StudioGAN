@@ -78,14 +78,14 @@ def main():
 
     hdf5_path_train = make_hdf5(**model_config['data_processing'], **train_config, mode='train') if args.load_all_data_in_memory else None
 
-    load_frameowrk(**train_config,
+    load_frameowrk(args.mask_path, args.mask_round, **train_config,
                    **model_config['data_processing'],
                    **model_config['train']['model'],
                    **model_config['train']['optimization'],
                    **model_config['train']['loss_function'],
                    **model_config['train']['initialization'],
                    **model_config['train']['training_and_sampling_setting'],
-                   train_config=train_config, model_config=model_config['train'], hdf5_path_train=hdf5_path_train, mask_path=args.mask_path, mask_round=args.mask_round)
+                   train_config=train_config, model_config=model_config['train'], hdf5_path_train=hdf5_path_train)
 
 if __name__ == '__main__':
     main()

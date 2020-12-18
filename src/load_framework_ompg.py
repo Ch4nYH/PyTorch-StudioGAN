@@ -40,13 +40,13 @@ RUN_NAME_FORMAT = (
     "{phase}-"
     "{timestamp}"
 )
-def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkpoint_folder, reduce_train_dataset, standing_statistics,
+def load_frameowrk(mask_path, mask_round, seed, disable_debugging_API, num_workers, config_path, checkpoint_folder, reduce_train_dataset, standing_statistics,
                    standing_step, freeze_layers, load_current, eval_type, dataset_name, num_classes, img_size, data_path,
                    architecture, conditional_strategy, hypersphere_dim, nonlinear_embed, normalize_embed, g_spectral_norm,
                    d_spectral_norm, activation_fn, attention, attention_after_nth_gen_block, attention_after_nth_dis_block, z_dim,
                    shared_dim, g_conv_dim, d_conv_dim, G_depth, D_depth, optimizer, batch_size, d_lr, g_lr, momentum, nesterov, alpha,
                    beta1, beta2, total_step, adv_loss, cr, g_init, d_init, random_flip_preprocessing, prior, truncated_factor,
-                   ema, ema_decay, ema_start, synchronized_bn, mixed_precision, hdf5_path_train, train_config, model_config, mask_path, mask_round, **_):
+                   ema, ema_decay, ema_start, synchronized_bn, mixed_precision, hdf5_path_train, train_config, model_config, **_):
     
     assert seed != 0, "Must specify a seed"
     if seed == 0:
