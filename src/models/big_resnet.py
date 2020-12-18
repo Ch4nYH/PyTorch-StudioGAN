@@ -362,7 +362,7 @@ class Discriminator(nn.Module):
                 if self.nonlinear_embed:
                     self.linear3 = snlinear(in_features=hypersphere_dim, out_features=hypersphere_dim)
                 self.embedding = sn_embedding(num_classes, hypersphere_dim)
-            elif self.conditional_strategy == 'ProjGAN':
+            elif self.conditional_strategy == 'ProjGAN' or self.conditional_strategy == 'ProjGAN_adv':
                 self.embedding = sn_embedding(num_classes, self.out_dims[-1])
             elif self.conditional_strategy == 'ACGAN':
                 self.linear4 = snlinear(in_features=self.out_dims[-1], out_features=num_classes)
@@ -375,7 +375,7 @@ class Discriminator(nn.Module):
                 if self.nonlinear_embed:
                     self.linear3 = linear(in_features=hypersphere_dim, out_features=hypersphere_dim)
                 self.embedding = embedding(num_classes, hypersphere_dim)
-            elif self.conditional_strategy == 'ProjGAN':
+            elif self.conditional_strategy == 'ProjGAN' or self.conditional_strategy == 'ProjGAN_adv':
                 self.embedding = embedding(num_classes, self.out_dims[-1])
             elif self.conditional_strategy == 'ACGAN':
                 self.linear4 = linear(in_features=self.out_dims[-1], out_features=num_classes)
