@@ -113,8 +113,6 @@ def pruning_generate_extract(model, checkpoint, initial_weight, parallel):
     masks = OrderedDict()
     for k, key in enumerate(checkpoint.keys()):        
         mask = checkpoint[key]
-        print(mask)
-        print(key)
         if parallel:
             masks[k + 1] = (mask != 0).int()
         else:
@@ -122,7 +120,6 @@ def pruning_generate_extract(model, checkpoint, initial_weight, parallel):
 
     # Load initial weights back
     model.load_state_dict(initial_weight)
-    print(masks)
     # Apply map
     for k, m in enumerate(model.modules()):
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):

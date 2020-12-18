@@ -271,7 +271,6 @@ def load_frameowrk(mask_path, mask_round, seed, disable_debugging_API, num_worke
         d_checkpoint_dir = glob.glob(join(mask_path,"model=D-{}-{when}-weights-step*.pth".format(mask_round, when=when)))[0]
         g_checkpoint = torch.load(g_checkpoint_dir)
         d_checkpoint = torch.load(d_checkpoint_dir)
-        print(g_checkpoint.keys())
 
         Gen, gen_masks = pruning_generate_extract(Gen, g_checkpoint['state_dict'], initial_G_weight, parallel)
         if ema:
