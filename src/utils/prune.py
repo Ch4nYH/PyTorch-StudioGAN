@@ -111,12 +111,13 @@ def pruning_generate_sn(model, px, initial_weight, parallel):
 def pruning_generate_extract(model, checkpoint, initial_weight, parallel):
     zero_flag = False
     masks = OrderedDict()
-    for k, key in enumerate(checkpoint.keys()):        
-        mask = checkpoint[key]
-        if parallel:
-            masks[k + 1] = (mask != 0).int()
-        else:
-            masks[k] = (mask != 0).int()
+    for k, m in enumerate(model.modules()):
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            mask = checkpoint[key]
+            if parallel:
+                masks[k + 1] = (mask != 0).int()
+            else:
+                masks[k] = (mask != 0).int()
 
     # Load initial weights back
     model.load_state_dict(initial_weight)
