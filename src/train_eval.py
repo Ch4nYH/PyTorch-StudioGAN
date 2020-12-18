@@ -276,10 +276,15 @@ class Train_Eval(object):
                             real_cls_mask = make_mask(real_labels, self.num_classes, self.default_device)
                             cls_proxies_real, cls_embed_real, dis_out_real = self.dis_model(real_images, real_labels)
                             cls_proxies_fake, cls_embed_fake, dis_out_fake = self.dis_model(fake_images, fake_labels)
+                        elif self.conditional_strategy == 'ProjGAN_adv':
+                            dis_out_fake, dis_out_fake_adv = self.dis_model(fake_images, fake_labels)
                         else:
                             raise NotImplementedError
-
-                        dis_acml_loss = self.D_loss(dis_out_real, dis_out_fake)
+                        
+                        if self.conditional_strategy != 'ProjGAN_adv':
+                            gen_acml_loss = self.D_loss(dis_out_fake)
+                        else:
+                            gen_acml_loss = (self.D_loss(dis_out_fake) + self.D_loss(dis_out_adv)) / 2
 
                         if self.conditional_strategy == "ACGAN":
                             dis_acml_loss += (self.ce_loss(cls_out_real, real_labels) + self.ce_loss(cls_out_fake, fake_labels))
@@ -427,6 +432,9 @@ class Train_Eval(object):
                         elif self.conditional_strategy in ["NT_Xent_GAN", "Proxy_NCA_GAN", "ContraGAN"]:
                             fake_cls_mask = make_mask(fake_labels, self.num_classes, self.default_device)
                             cls_proxies_fake, cls_embed_fake, dis_out_fake = self.dis_model(fake_images, fake_labels)
+                        elif self.conditional_strategy == 'ProjGAN_adv':
+                            dis_out_fake, dis_out_fake_adv = self.dis_model(fake_images, fake_labels)
+                            dis_out_real = self.dis_model(real_images, real_labels)
                         else:
                             raise NotImplementedError
 

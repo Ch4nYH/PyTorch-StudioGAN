@@ -387,7 +387,8 @@ class Discriminator(nn.Module):
             init_weights(self.modules, initialize)
 
 
-    def forward(self, x, label, evaluation=False):
+    def forward(self, x, label, evaluation=False, only_fc = False, fc = True):
+
         with torch.cuda.amp.autocast() if self.mixed_precision is True and evaluation is False else dummy_context_mgr() as mp:
             h = x
             for index, blocklist in enumerate(self.blocks):
@@ -412,9 +413,46 @@ class Discriminator(nn.Module):
                 return cls_proxy, cls_embed, authen_output
 
             elif self.conditional_strategy == 'ProjGAN':
+
                 authen_output = torch.squeeze(self.linear1(h))
                 proj = torch.sum(torch.mul(self.embedding(label), h), 1)
                 return proj + authen_output
+
+            elif self.conditional_strategy == 'ProjGAN_adv':
+
+                x_adv = h.detach().copy()
+
+                def adv_forward(g):
+                    authen_output = torch.squeeze(self.linear1(g))
+                    proj = torch.sum(torch.mul(self.embedding(label), g), 1)
+                    return proj + authen_output
+
+                def loss_hinge_dis(dis_out_fake):
+                    return torch.mean(F.relu(1. + dis_out_fake))
+
+                steps = 1
+                clip = False
+
+                for t in range(steps):
+                    out = adv_forward(x_adv)
+                    loss_adv0 = torch.mean(out)
+                    grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
+                    x_adv.data.add_(gamma * torch.sign(grad0.data))
+
+                    if clip:
+                        linfball_proj(x, eps, x_adv, in_place=True)
+
+                authen_output = torch.squeeze(self.linear1(h))
+                proj = torch.sum(torch.mul(self.embedding(label), h), 1)
+                real_output = proj + authen_output
+                
+                authen_output_fake = torch.squeeze(self.linear1(x_adv))
+                proj_fake = torch.sum(torch.mul(self.embedding(x_adv), h), 1)
+                real_output_fake = proj_fake + authen_output_fake
+
+                fake_output = proj_fake + real_output_fake
+
+                return real_output, fake_output
 
             elif self.conditional_strategy == 'ACGAN':
                 authen_output = torch.squeeze(self.linear1(h))
@@ -423,3 +461,27 @@ class Discriminator(nn.Module):
 
             else:
                 raise NotImplementedError
+
+
+
+def PGD(x, model=None, steps=1, gamma=0.1, eps=(1/255), randinit=False, clip=False):
+    
+    # Compute loss
+    x_adv = x.clone()
+    if randinit:
+        # adv noise (-eps, eps)
+        x_adv += (2.0 * torch.rand(x_adv.shape).cuda() - 1.0) * eps
+    x_adv = x_adv.cuda()
+    x = x.cuda()
+
+    for t in range(steps):
+
+        out = model(x_adv)
+        loss_adv0 = torch.mean(out)
+        grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
+        x_adv.data.add_(gamma * torch.sign(grad0.data))
+
+        if clip:
+            linfball_proj(x, eps, x_adv, in_place=True)
+
+    return x_adv
