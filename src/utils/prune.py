@@ -114,7 +114,10 @@ def pruning_generate_extract(model, checkpoint, initial_weight):
     keys = list(model.state_dict().keys())
     for k, (key, m) in enumerate(model.named_modules()):
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-            mask = checkpoint[key + '.weight']
+            try:
+                mask = checkpoint[key + '.weight']
+            except:
+                mask = checkpoint[key + '.weight_orig']
             print(mask)
             print(key)
             masks[k] = (mask != 0).int()
