@@ -84,7 +84,7 @@ def main():
                    **model_config['train']['loss_function'],
                    **model_config['train']['initialization'],
                    **model_config['train']['training_and_sampling_setting'],
-                   train_config=train_config, model_config=model_config['train'], hdf5_path_train=hdf5_path_train, masks_path = args.sparse_masks_dir)
+                   train_config=train_config, model_config=model_config['train'], hdf5_path_train=hdf5_path_train)
 
 if __name__ == '__main__':
     main()
