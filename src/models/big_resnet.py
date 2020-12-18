@@ -432,6 +432,7 @@ class Discriminator(nn.Module):
 
                 steps = 1
                 clip = False
+                gamma = 1
 
                 for t in range(steps):
                     out = adv_forward(x_adv)
