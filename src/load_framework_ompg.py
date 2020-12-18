@@ -257,6 +257,15 @@ def load_frameowrk(mask_path, mask_round, seed, disable_debugging_API, num_worke
 
 
     if mask_path is not None:
+        if isinstance(Gen, DataParallel):
+            parallel = True
+            Gen = Gen.module
+            Dis = Dis.module
+            if ema:
+                Gen_copy = Gen_copy.module
+        else:
+            parallel = False
+            
         when = 'best'
         g_checkpoint_dir = glob.glob(join(mask_path,"model=G-{}-{when}-weights-step*.pth".format(mask_round, when=when)))[0]
         d_checkpoint_dir = glob.glob(join(mask_path,"model=D-{}-{when}-weights-step*.pth".format(mask_round, when=when)))[0]
