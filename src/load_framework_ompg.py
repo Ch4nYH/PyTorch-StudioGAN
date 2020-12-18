@@ -11,6 +11,7 @@ import PIL
 import random
 import warnings
 from os.path import dirname, abspath, exists, join
+import pdb
 
 from data_utils.load_dataset import *
 from metrics.inception_network import InceptionV3
@@ -21,7 +22,7 @@ from utils.load_checkpoint import load_checkpoint
 from utils.misc import *
 from utils.biggan_utils import ema_
 from sync_batchnorm.batchnorm import convert_model
-from train_eval import Train_Eval
+from train_eval_impg import Train_Eval
 
 import torch
 from torchvision import transforms
@@ -30,6 +31,8 @@ from torch.backends import cudnn
 from torch.nn import DataParallel
 from torch.utils.tensorboard import SummaryWriter
 
+import copy
+from utils.prune import pruning_generate, rewind_weight, see_remain_rate, pruning_generate_sn, pruning_generate_extract
 
 
 RUN_NAME_FORMAT = (
@@ -43,7 +46,9 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
                    d_spectral_norm, activation_fn, attention, attention_after_nth_gen_block, attention_after_nth_dis_block, z_dim,
                    shared_dim, g_conv_dim, d_conv_dim, G_depth, D_depth, optimizer, batch_size, d_lr, g_lr, momentum, nesterov, alpha,
                    beta1, beta2, total_step, adv_loss, cr, g_init, d_init, random_flip_preprocessing, prior, truncated_factor,
-                   ema, ema_decay, ema_start, synchronized_bn, mixed_precision, hdf5_path_train, train_config, model_config, masks_path = None, **_):
+                   ema, ema_decay, ema_start, synchronized_bn, mixed_precision, hdf5_path_train, train_config, model_config, masks_path, **_):
+    
+    assert seed != 0, "Must specify a seed"
     if seed == 0:
         cudnn.benchmark = True
         cudnn.deterministic = False
@@ -102,6 +107,8 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
     Dis = module.Discriminator(img_size, d_conv_dim, d_spectral_norm, attention, attention_after_nth_dis_block, activation_fn, conditional_strategy,
                                hypersphere_dim, num_classes, nonlinear_embed, normalize_embed, d_init, D_depth, mixed_precision).to(default_device)
 
+    initial_G_weight = copy.deepcopy(Gen.state_dict())
+    initial_D_weight = copy.deepcopy(Dis.state_dict())
     if ema:
         print('Preparing EMA for G with decay of {}'.format(ema_decay))
         Gen_copy = module.Generator(z_dim, shared_dim, img_size, g_conv_dim, g_spectral_norm, attention, attention_after_nth_gen_block, activation_fn,
@@ -134,32 +141,6 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
     else:
         raise NotImplementedError
 
-    if checkpoint_folder is not None:
-        when = "current" if load_current is True else "best"
-        if not exists(abspath(checkpoint_folder)):
-            raise NotADirectoryError
-        checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
-        g_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=G-{when}-weights-step*.pth".format(when=when)))[0]
-        d_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=D-{when}-weights-step*.pth".format(when=when)))[0]
-        Gen, G_optimizer, trained_seed, run_name, step, prev_ada_p = load_checkpoint(Gen, G_optimizer, g_checkpoint_dir)
-        Dis, D_optimizer, trained_seed, run_name, step, prev_ada_p, best_step, best_fid, best_fid_checkpoint_path =\
-            load_checkpoint(Dis, D_optimizer, d_checkpoint_dir, metric=True)
-        logger = make_logger(run_name, None)
-        if ema:
-            g_ema_checkpoint_dir = glob.glob(join(checkpoint_dir, "model=G_ema-{when}-weights-step*.pth".format(when=when)))[0]
-            Gen_copy = load_checkpoint(Gen_copy, None, g_ema_checkpoint_dir, ema=True)
-            Gen_ema.source, Gen_ema.target = Gen, Gen_copy
-
-        writer = SummaryWriter(log_dir=join('./logs', run_name))
-        if train_config['train']:
-            assert seed == trained_seed, "seed for sampling random numbers should be same!"
-        logger.info('Generator checkpoint is {}'.format(g_checkpoint_dir))
-        logger.info('Discriminator checkpoint is {}'.format(d_checkpoint_dir))
-        if freeze_layers > -1 :
-            prev_ada_p, step, best_step, best_fid, best_fid_checkpoint_path = None, 0, 0, None, None
-    else:
-        checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
-
     if n_gpus > 1:
         Gen = DataParallel(Gen, output_device=default_device)
         Dis = DataParallel(Dis, output_device=default_device)
@@ -187,8 +168,128 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
     else:
         mu, sigma, inception_model = None, None, None
 
+    gen_masks = None
+
+    start_round = 0
+    if train_config['checkpoint_folder'] is not None:
+        if isinstance(Gen, DataParallel):
+            parallel = True
+            Gen = Gen.module
+            Dis = Dis.module
+            if ema:
+                Gen_copy = Gen_copy.module
+        else:
+            parallel = False
+            
+        when = "best"
+        if not exists(abspath(checkpoint_folder)):
+            raise NotADirectoryError
+
+        round_ = 0
+        checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
+        g_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=G-{}-{when}-weights-step*.pth".format(round_, when=when)))[0]
+        d_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=D-{}-{when}-weights-step*.pth".format(round_, when=when)))[0]
+        Gen, _, _, run_name, _, _ = load_checkpoint(Gen, G_optimizer, g_checkpoint_dir)
+        Dis, _, _, run_name, _, _, _, _, _ =\
+            load_checkpoint(Dis, D_optimizer, d_checkpoint_dir, metric=True)
+        logger = make_logger(run_name, None)
+        if ema:
+            g_ema_checkpoint_dir = glob.glob(join(checkpoint_dir, "model=G_ema-{}-{when}-weights-step*.pth".format(round_, when=when)))[0]
+            Gen_copy = load_checkpoint(Gen_copy, None, g_ema_checkpoint_dir, ema=True)
+            Gen_ema.source, Gen_ema.target = Gen, Gen_copy
+
+        writer = SummaryWriter(log_dir=join('./logs', run_name))
+
+        logger.info('Generator checkpoint is {}'.format(g_checkpoint_dir))
+        logger.info('Discriminator checkpoint is {}'.format(d_checkpoint_dir))
+
+        Gen, gen_masks = pruning_generate_sn(Gen, 0.2, initial_G_weight, parallel)
+        if ema:
+            Gen_copy, _ = pruning_generate_sn(Gen_copy, 0.2, initial_G_weight, parallel)
+        Dis.load_state_dict(initial_D_weight)
+        
+        if ema:
+            Gen_ema = ema_(Gen, Gen_copy, ema_decay, ema_start)
+        
+
+        if n_gpus > 1:
+            Gen = DataParallel(Gen, output_device=default_device)
+            Dis = DataParallel(Dis, output_device=default_device)
+            if ema:
+                Gen_copy = DataParallel(Gen_copy, output_device=default_device)
+
+            if synchronized_bn:
+                Gen = convert_model(Gen).to(default_device)
+                Dis = convert_model(Dis).to(default_device)
+                if ema:
+                    Gen_copy = convert_model(Gen_copy).to(default_device)
+
+        toggle_grad(Gen, True, freeze_layers=-1)
+        toggle_grad(Dis, True, freeze_layers=-1)
+        if optimizer == "SGD":
+            G_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, momentum=momentum, nesterov=nesterov)
+            D_optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, momentum=momentum, nesterov=nesterov)
+        elif optimizer == "RMSprop":
+            G_optimizer = torch.optim.RMSprop(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, momentum=momentum, alpha=alpha)
+            D_optimizer = torch.optim.RMSprop(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, momentum=momentum, alpha=alpha)
+        elif optimizer == "Adam":
+            G_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, Gen.parameters()), g_lr, [beta1, beta2], eps=1e-6)
+            D_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, Dis.parameters()), d_lr, [beta1, beta2], eps=1e-6)
+        else:
+            raise NotImplementedError
+
+        prev_ada_p, step, best_step, best_fid, best_fid_checkpoint_path = None, 0, 0, None, None
+
+
+        if mu is not None:
+            mu, sigma = prepare_inception_moments(dataloader=eval_dataloader,
+                                                generator=Gen,
+                                                eval_mode=eval_type,
+                                                inception_model=inception_model,
+                                                splits=1,
+                                                run_name=run_name,
+                                                logger=logger,
+                                                device=default_device)
+        start_round = 1
+    
+    else:
+        checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
+
+
+    if masks_path is not None:
+        when = 'best'
+        g_checkpoint_dir = glob.glob(join(masks_path,"model=G-{when}-weights-step*.pth".format(when=when)))[0]
+        d_checkpoint_dir = glob.glob(join(masks_path,"model=D-{when}-weights-step*.pth".format(when=when)))[0]
+        g_checkpoint = torch.load(g_checkpoint_dir)
+        d_checkpoint = torch.load(d_checkpoint_dir)
+
+
+        Gen, gen_masks = pruning_generate_extract(Gen, g_checkpoint, initial_G_weight, parallel)
+        if ema:
+            Gen_copy, _ = pruning_generate_extract(Gen_copy, g_checkpoint, initial_G_weight, parallel)
+        Dis.load_state_dict(initial_D_weight)
+        
+        if ema:
+            Gen_ema = ema_(Gen, Gen_copy, ema_decay, ema_start)
+        
+
+        if n_gpus > 1:
+            Gen = DataParallel(Gen, output_device=default_device)
+            Dis = DataParallel(Dis, output_device=default_device)
+            if ema:
+                Gen_copy = DataParallel(Gen_copy, output_device=default_device)
+
+            if synchronized_bn:
+                Gen = convert_model(Gen).to(default_device)
+                Dis = convert_model(Dis).to(default_device)
+                if ema:
+                    Gen_copy = convert_model(Gen_copy).to(default_device)
+    
+    
 
     train_eval = Train_Eval(
+        prune_round = round, 
+        gen_masks = gen_masks,
         run_name=run_name,
         best_step=best_step,
         dataset_name=dataset_name,
@@ -296,3 +397,11 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
 
     if train_config['frequency_analysis']:
         train_eval.run_frequency_analysis(num_images=len(train_dataset)//num_classes, standing_statistics=standing_statistics, standing_step=standing_step)
+
+    
+    Gen = train_eval.gen_model
+    Dis = train_eval.dis_model
+    
+    if ema:
+        Gen_copy = train_eval.Gen_copy
+

@@ -11,7 +11,7 @@ import sys
 from argparse import ArgumentParser
 
 from utils.make_hdf5 import make_hdf5
-from load_framework import load_frameowrk
+from load_framework_ompg import load_frameowrk
 
 
 
@@ -47,7 +47,6 @@ def main():
     parser.add_argument('--print_every', type=int, default=100, help='control log interval')
     parser.add_argument('--save_every', type=int, default=2000, help='control evaluation and save interval')
     parser.add_argument('--eval_type', type=str, default='test', help='[train/valid/test]')
-    parser.add_argument('--sparse_masks_dir', type=str, default=None)
     args = parser.parse_args()
 
     if not args.train and \
@@ -83,7 +82,7 @@ def main():
                    **model_config['train']['loss_function'],
                    **model_config['train']['initialization'],
                    **model_config['train']['training_and_sampling_setting'],
-                   train_config=train_config, model_config=model_config['train'], hdf5_path_train=hdf5_path_train, masks_path = args.sparse_masks_dir)
+                   train_config=train_config, model_config=model_config['train'], hdf5_path_train=hdf5_path_train)
 
 if __name__ == '__main__':
     main()
