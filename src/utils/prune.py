@@ -108,7 +108,7 @@ def pruning_generate_sn(model, px, initial_weight, parallel):
 
     return model, masks
 
-def pruning_generate_extract(model, checkpoint, initial_weight):
+def pruning_generate_extract(model, checkpoint, initial_weight, parallel):
     zero_flag = False
     masks = OrderedDict()
     keys = list(model.state_dict().keys())
@@ -124,6 +124,7 @@ def pruning_generate_extract(model, checkpoint, initial_weight):
 
     # Load initial weights back
     model.load_state_dict(initial_weight)
+    new_masks = OrderedDict()
     # Apply map
     for k, m in enumerate(model.modules()):
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
@@ -131,8 +132,12 @@ def pruning_generate_extract(model, checkpoint, initial_weight):
                 m.weight_orig.data.mul_(masks[k])
             except:
                 m.weight.data.mul_(masks[k])
+            if parallel: 
+                new_masks[k + 1] = masks[k]
+            else:
+                new_masks[k] = masks[k]
 
-    return model, masks
+    return model, new_masks
 
 def see_remain_rate_orig(model):
     sum_list = 0.001
