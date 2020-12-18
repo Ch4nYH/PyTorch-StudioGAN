@@ -289,9 +289,9 @@ class Train_Eval(object):
                             raise NotImplementedError
                         
                         if self.conditional_strategy != 'ProjGAN_adv':
-                            gen_acml_loss = self.D_loss(dis_out_real, dis_out_fake)
+                            dis_acml_loss = self.D_loss(dis_out_real, dis_out_fake)
                         else:
-                            gen_acml_loss = (self.D_loss(dis_out_real, dis_out_fake) + self.D_loss(dis_out_real_adv, dis_out_fake_adv)) / 2
+                            dis_acml_loss = (self.D_loss(dis_out_real, dis_out_fake) + self.D_loss(dis_out_real_adv, dis_out_fake_adv)) / 2
 
                         if self.conditional_strategy == "ACGAN":
                             dis_acml_loss += (self.ce_loss(cls_out_real, real_labels) + self.ce_loss(cls_out_fake, fake_labels))
