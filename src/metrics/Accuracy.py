@@ -98,7 +98,7 @@ def calculate_accuracy(dataloader, generator, discriminator, D_loss, num_evaluat
                     _, _, dis_out_real = discriminator(real_images, real_labels)
                 elif conditional_strategy == "ACGAN":
                     _, dis_out_real = discriminator(real_images, real_labels)
-                elif conditional_strategy == "ProjGAN" or conditional_strategy == "no":
+                elif conditional_strategy == "ProjGAN" or conditional_strategy == "ProjGAN_adv" or conditional_strategy == "no":
                     dis_out_real = discriminator(real_images, real_labels)
                 else:
                     raise NotImplementedError
