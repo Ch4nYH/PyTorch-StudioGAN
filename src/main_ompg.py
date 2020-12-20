@@ -49,8 +49,8 @@ def main():
     parser.add_argument('--eval_type', type=str, default='test', help='[train/valid/test]')
     parser.add_argument('--mask_path', type=str, default=None)
     parser.add_argument('--mask_round', type=int, default=None)
-    parser.add_argument('--gamma', type=float, default=1/255)
-    parser.add_argument('--steps', type=int, default=1)
+    parser.add_argument('--gamma', type=float, default=0)
+    parser.add_argument('--steps', type=int, default=0)
     args = parser.parse_args()
 
     if not args.train and \
