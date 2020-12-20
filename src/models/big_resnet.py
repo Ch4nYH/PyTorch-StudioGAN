@@ -439,7 +439,7 @@ class Discriminator(nn.Module):
 
                 for t in range(steps):
                     out = adv_forward(x_adv)
-                    loss_adv0 = torch.mean(out)
+                    loss_adv0 = loss_hinge_dis(out)
                     grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
                     x_adv.data.add_(gamma * torch.sign(grad0.data))
 
@@ -450,13 +450,14 @@ class Discriminator(nn.Module):
                 proj = torch.sum(torch.mul(self.embedding(label), h), 1)
                 real_output = proj + authen_output
                 
-                authen_output_fake = torch.squeeze(self.linear1(x_adv))
-                proj_fake = torch.sum(torch.mul(self.embedding(label), x_adv), 1)
-                real_output_fake = proj_fake + authen_output_fake
+                #authen_output_fake = torch.squeeze(self.linear1(x_adv))
+                #proj_fake = torch.sum(torch.mul(self.embedding(label), x_adv), 1)
+                #real_output_fake = proj_fake + authen_output_fake
 
-                fake_output = proj_fake + real_output_fake
+                #fake_output = proj_fake + real_output_fake
 
-                return real_output, fake_output
+                #return real_output, fake_output
+                return real_output, real_output
 
             elif self.conditional_strategy == 'ACGAN':
                 authen_output = torch.squeeze(self.linear1(h))
