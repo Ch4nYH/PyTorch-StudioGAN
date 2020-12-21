@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import pdb
 
 
 class GenBlock(nn.Module):
@@ -390,7 +391,7 @@ class Discriminator(nn.Module):
             init_weights(self.modules, initialize)
 
 
-    def forward(self, x, label, evaluation=False, only_fc = False, fc = True):
+    def forward(self, x, label, evaluation=False):
 
         with torch.cuda.amp.autocast() if self.mixed_precision is True and evaluation is False else dummy_context_mgr() as mp:
             h = x
@@ -425,6 +426,7 @@ class Discriminator(nn.Module):
 
                 x_adv = h.detach()#.copy()
                 x_adv.requires_grad=True
+                
                 def adv_forward(g):
                     authen_output = torch.squeeze(self.linear1(g))
                     proj = torch.sum(torch.mul(self.embedding(label), g), 1)
@@ -450,6 +452,7 @@ class Discriminator(nn.Module):
                 proj = torch.sum(torch.mul(self.embedding(label), h), 1)
                 real_output = proj + authen_output
                 
+                pdb.set_trace()
                 #authen_output_fake = torch.squeeze(self.linear1(x_adv))
                 #proj_fake = torch.sum(torch.mul(self.embedding(label), x_adv), 1)
                 #real_output_fake = proj_fake + authen_output_fake
