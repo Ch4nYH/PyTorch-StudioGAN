@@ -424,7 +424,7 @@ class Discriminator(nn.Module):
 
             elif self.conditional_strategy == 'ProjGAN_adv':
 
-                x_adv = h.detach().clone()
+                x_adv = h.clone().detach()
                 x_adv.requires_grad=True
                 
                 def adv_forward(g):
