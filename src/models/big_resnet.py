@@ -455,8 +455,8 @@ class Discriminator(nn.Module):
 
                 proj      = torch.sum(mul1, 1)
                 real_output = proj + authen_output
-                
                 #pdb.set_trace()
+                x_adv.requires_grad_ = False
                 authen_output_fake = torch.squeeze(self.linear1(x_adv))
                 emb2 = self.embedding(label)
                 mul2 = torch.mul(emb2, x_adv)
