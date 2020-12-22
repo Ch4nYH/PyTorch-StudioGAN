@@ -434,7 +434,8 @@ class Discriminator(nn.Module):
                 def loss_hinge_dis(dis_out_fake):
                     return torch.mean(F.relu(1. + dis_out_fake))
 
-                steps = self.steps
+                #steps = self.steps
+                steps = 0
                 clip = False
                 gamma = self.gamma
 
