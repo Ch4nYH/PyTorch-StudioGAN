@@ -424,7 +424,7 @@ class Discriminator(nn.Module):
 
             elif self.conditional_strategy == 'ProjGAN_adv':
 
-                x_adv = h.clone().detach()
+                x_adv = h.detach().clone()
                 x_adv.requires_grad_ = True
                 def adv_forward(g):
                     authen_output = torch.squeeze(self.linear1(g))
@@ -458,6 +458,9 @@ class Discriminator(nn.Module):
                 real_output_fake = proj_fake + authen_output_fake
 
                 fake_output = proj_fake + real_output_fake
+                assert (h - x_adv).float().mean() == 0
+                assert (authen_output - authen_output_fake).float().mean() == 0
+                assert (proj - proj_fake).float().mean() == 0
                 assert (real_output - fake_output).float().mean() == 0
                 return real_output, fake_output
                 #return real_output, real_output
