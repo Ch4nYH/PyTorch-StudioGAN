@@ -458,7 +458,7 @@ class Discriminator(nn.Module):
                 real_output_fake = proj_fake + authen_output_fake
 
                 fake_output = proj_fake + real_output_fake
-
+                assert (real_output - fake_output).float().mean() == 0
                 return real_output, fake_output
                 #return real_output, real_output
 
