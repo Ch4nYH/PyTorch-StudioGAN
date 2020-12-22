@@ -450,17 +450,22 @@ class Discriminator(nn.Module):
                         linfball_proj(x, eps, x_adv, in_place=True)
 
                 authen_output = torch.squeeze(self.linear1(h))
-                proj = torch.sum(torch.mul(self.embedding(label), h), 1)
+                mul1 = torch.mul(self.embedding(label), h)
+
+                proj      = torch.sum(mul1, 1)
                 real_output = proj + authen_output
                 
                 #pdb.set_trace()
                 authen_output_fake = torch.squeeze(self.linear1(x_adv))
-                proj_fake = torch.sum(torch.mul(self.embedding(label), x_adv), 1)
+                mul2 = torch.mul(self.embedding(label), x_adv)
+                proj_fake = torch.sum(mul2, 1)
                 real_output_fake = proj_fake + authen_output_fake
 
                 fake_output = proj_fake + real_output_fake
+
                 assert (h - x_adv).float().mean() == 0
                 assert (authen_output - authen_output_fake).float().mean() == 0
+                assert (mul1 - mul2).float().mean() == 0
                 assert (proj - proj_fake).float().mean() == 0
                 assert (real_output - fake_output).float().mean() == 0
                 return real_output, fake_output
