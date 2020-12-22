@@ -426,9 +426,10 @@ class Discriminator(nn.Module):
 
                 x_adv = h.detach().clone()
                 x_adv.requires_grad_ = True
-                def adv_forward(g):
+                emb = self.embedding(label)
+                def adv_forward(g, emb):
                     authen_output = torch.squeeze(self.linear1(g))
-                    proj = torch.sum(torch.mul(self.embedding(label), g), 1)
+                    proj = torch.sum(torch.mul(emb, g), 1)
                     return proj + authen_output
 
                 def loss_hinge_dis(dis_out_fake):
@@ -441,7 +442,7 @@ class Discriminator(nn.Module):
 
                 for t in range(steps):
                     print(t)
-                    out = adv_forward(x_adv)
+                    out = adv_forward(x_adv, emb)
                     loss_adv0 = loss_hinge_dis(out)
                     grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
                     x_adv.data.add_(gamma * torch.sign(grad0.data))
@@ -450,7 +451,7 @@ class Discriminator(nn.Module):
                         linfball_proj(x, eps, x_adv, in_place=True)
 
                 authen_output = torch.squeeze(self.linear1(h))
-                emb = self.embedding(label)
+                
                 mul1 = torch.mul(emb, h)
                 proj      = torch.sum(mul1, 1)
                 real_output = proj + authen_output
