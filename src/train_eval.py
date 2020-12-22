@@ -279,15 +279,17 @@ class Train_Eval(object):
                             cls_proxies_real, cls_embed_real, dis_out_real = self.dis_model(real_images, real_labels)
                             cls_proxies_fake, cls_embed_fake, dis_out_fake = self.dis_model(fake_images, fake_labels)
                         elif self.conditional_strategy == 'ProjGAN_adv':
-                            dis_out_fake, dis_out_fake_adv = self.dis_model(fake_images, fake_labels)
-                            dis_out_real, dis_out_real_adv = self.dis_model(real_images, real_labels)
+                            #dis_out_fake, dis_out_fake_adv = self.dis_model(fake_images, fake_labels)
+                            #dis_out_real, dis_out_real_adv = self.dis_model(real_images, real_labels)
+                            dis_out_real,_ = self.dis_model(real_images, real_labels)
+                            dis_out_fake,_ = self.dis_model(fake_images, fake_labels)
                         else:
                             raise NotImplementedError
                         
-                        if self.conditional_strategy != 'ProjGAN_adv':
+                        #if self.conditional_strategy != 'ProjGAN_adv':
+                        if True:
                             dis_acml_loss = self.D_loss(dis_out_real, dis_out_fake)
                         else:
-                            assert (dis_out_real_adv - dis_out_real).float().mean().item() == 0
                             dis_acml_loss = (self.D_loss(dis_out_real, dis_out_fake) + self.D_loss(dis_out_real_adv, dis_out_fake_adv)) / 2
 
                         if self.conditional_strategy == "ACGAN":

@@ -463,12 +463,6 @@ class Discriminator(nn.Module):
                 proj_fake = torch.sum(mul2, 1)
                 real_output_fake = proj_fake + authen_output_fake
 
-                assert (h - x_adv).float().abs().mean() == 0
-                assert (authen_output - authen_output_fake).float().abs().mean() == 0
-                assert (mul1 - mul2).float().mean() == 0
-                assert (mul1 - mul2).float().abs().mean() == 0
-                assert (proj - proj_fake).float().abs().mean() == 0
-                assert (real_output - real_output_fake).float().abs().mean() == 0
                 return real_output, real_output_fake
                 #return real_output, real_output
 
