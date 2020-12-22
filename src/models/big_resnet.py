@@ -425,7 +425,6 @@ class Discriminator(nn.Module):
             elif self.conditional_strategy == 'ProjGAN_adv':
 
                 x_adv = h.clone().detach()
-                x_adv.requires_grad=True
                 
                 def adv_forward(g):
                     authen_output = torch.squeeze(self.linear1(g))

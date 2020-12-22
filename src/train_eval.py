@@ -198,6 +198,8 @@ class Train_Eval(object):
         elif self.dataset_name == "tiny_imagenet":
             self.num_eval = {'train':50000, 'valid':10000}
         elif self.dataset_name == "cifar10":
+            self.num_eval = {'train':50000, 'test':10000}
+        elif self.dataset_name == "cifar10_less":
             self.num_eval = {'train':5000, 'test':10000}
         elif self.dataset_name == "custom":
             num_train_images = len(self.train_dataset.data)
@@ -285,6 +287,7 @@ class Train_Eval(object):
                         if self.conditional_strategy != 'ProjGAN_adv':
                             dis_acml_loss = self.D_loss(dis_out_real, dis_out_fake)
                         else:
+                            assert (dis_out_real_adv - dis_out_real).float().mean().item() == 0
                             dis_acml_loss = (self.D_loss(dis_out_real, dis_out_fake) + self.D_loss(dis_out_real_adv, dis_out_fake_adv)) / 2
 
                         if self.conditional_strategy == "ACGAN":
