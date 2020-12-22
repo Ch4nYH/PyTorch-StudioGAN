@@ -440,6 +440,7 @@ class Discriminator(nn.Module):
                 gamma = self.gamma
 
                 for t in range(steps):
+                    print(t)
                     out = adv_forward(x_adv)
                     loss_adv0 = loss_hinge_dis(out)
                     grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
