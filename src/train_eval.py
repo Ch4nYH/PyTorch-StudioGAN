@@ -281,13 +281,13 @@ class Train_Eval(object):
                         elif self.conditional_strategy == 'ProjGAN_adv':
                             #dis_out_fake, dis_out_fake_adv = self.dis_model(fake_images, fake_labels)
                             #dis_out_real, dis_out_real_adv = self.dis_model(real_images, real_labels)
-                            dis_out_real,_ = self.dis_model(real_images, real_labels)
-                            dis_out_fake,_ = self.dis_model(fake_images, fake_labels)
+                            dis_out_real,dis_out_real_adv = self.dis_model(real_images, real_labels)
+                            dis_out_fake,dis_out_fake_adv = self.dis_model(fake_images, fake_labels)
                         else:
                             raise NotImplementedError
                         
                         #if self.conditional_strategy != 'ProjGAN_adv':
-                        if True:
+                        if self.conditional_strategy != 'ProjGAN_adv':
                             dis_acml_loss = self.D_loss(dis_out_real, dis_out_fake)
                         else:
                             dis_acml_loss = (self.D_loss(dis_out_real, dis_out_fake) + self.D_loss(dis_out_real_adv, dis_out_fake_adv)) / 2
