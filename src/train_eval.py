@@ -293,7 +293,7 @@ class Train_Eval(object):
                             dis_out_real = self.dis_model(dis_out_real_prefc, real_labels, only_fc=True)
                             dis_out_fake = self.dis_model(dis_out_fake_prefc, fake_labels, only_fc=True)
 
-                            dis_out_real_adv = self.dis_model(dis_out_real_prefc_adv , real_labels, only_fc=True)
+                            dis_out_real_adv = self.dis_model(dis_out_real_prefc_adv, real_labels, only_fc=True)
                             dis_out_fake_adv = self.dis_model(dis_out_fake_prefc_adv, fake_labels, only_fc=True)
 
 
