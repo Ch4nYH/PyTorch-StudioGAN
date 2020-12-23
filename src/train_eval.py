@@ -279,15 +279,14 @@ class Train_Eval(object):
                             cls_proxies_real, cls_embed_real, dis_out_real = self.dis_model(real_images, real_labels)
                             cls_proxies_fake, cls_embed_fake, dis_out_fake = self.dis_model(fake_images, fake_labels)
                         elif self.conditional_strategy == 'ProjGAN_adv':
-                            #dis_out_fake, dis_out_fake_adv = self.dis_model(fake_images, fake_labels)
-                            #dis_out_real, dis_out_real_adv = self.dis_model(real_images, real_labels)
-                            dis_out_real,dis_out_real_adv = self.dis_model(real_images, real_labels)
-                            dis_out_fake,dis_out_fake_adv = self.dis_model(fake_images, fake_labels)
+                            dis_out_real = self.dis_model(real_images, real_labels)
+                            dis_out_fake = self.dis_model(fake_images, fake_labels)
                         else:
                             raise NotImplementedError
                         
                         #if self.conditional_strategy != 'ProjGAN_adv':
-                        if self.conditional_strategy != 'ProjGAN_adv':
+                        #if self.conditional_strategy != 'ProjGAN_adv':
+                        if True:
                             dis_acml_loss = self.D_loss(dis_out_real, dis_out_fake)
                         else:
                             dis_acml_loss = (self.D_loss(dis_out_real, dis_out_fake) + self.D_loss(dis_out_real_adv, dis_out_fake_adv)) / 2
@@ -317,7 +316,7 @@ class Train_Eval(object):
                                 _, cls_embed_real_aug, dis_out_real_aug = self.dis_model(real_images_aug, real_labels)
                                 cls_consistency_loss = self.l2_loss(cls_embed_real, cls_embed_real_aug)
                             elif self.conditional_strategy == "ProjGAN_adv":
-                                dis_out_real_aug,_ = self.dis_model(real_images_aug, real_labels)
+                                dis_out_real_aug = self.dis_model(real_images_aug, real_labels)
                             else:
                                 raise NotImplementedError
 
@@ -343,8 +342,8 @@ class Train_Eval(object):
                                 cls_bcr_real_loss = self.l2_loss(cls_embed_real, cls_embed_real_aug)
                                 cls_bcr_fake_loss = self.l2_loss(cls_embed_fake, cls_embed_fake_aug)
                             elif self.conditional_strategy == "ProjGAN_adv":
-                                dis_out_real_aug, = self.dis_model(real_images_aug, real_labels)
-                                dis_out_fake_aug, = self.dis_model(fake_images_aug, fake_labels)
+                                dis_out_real_aug = self.dis_model(real_images_aug, real_labels)
+                                dis_out_fake_aug = self.dis_model(fake_images_aug, fake_labels)
                             else:
                                 raise NotImplementedError
 
@@ -366,7 +365,7 @@ class Train_Eval(object):
                                 cls_proxies_fake_zaug, cls_embed_fake_zaug, dis_out_fake_zaug = self.dis_model(fake_images_zaug, fake_labels)
                                 cls_zcr_dis_loss = self.l2_loss(cls_embed_fake, cls_embed_fake_zaug)
                             elif self.conditional_strategy == "ProjGAN_adv":
-                                dis_out_fake_zaug,_ = self.dis_model(fake_images_zaug, fake_labels)
+                                dis_out_fake_zaug = self.dis_model(fake_images_zaug, fake_labels)
                             else:
                                 raise NotImplementedError
 
@@ -446,7 +445,7 @@ class Train_Eval(object):
                             fake_cls_mask = make_mask(fake_labels, self.num_classes, self.default_device)
                             cls_proxies_fake, cls_embed_fake, dis_out_fake = self.dis_model(fake_images, fake_labels)
                         elif self.conditional_strategy == 'ProjGAN_adv':
-                            dis_out_fake, dis_out_fake_adv = self.dis_model(fake_images, fake_labels)
+                            dis_out_fake = self.dis_model(fake_images, fake_labels)
                         else:
                             raise NotImplementedError
 

@@ -70,7 +70,7 @@ class LoadDataset(Dataset):
         if self.hdf5_path is not None:
             transform_list = [transforms.ToPILImage()]
         else:
-            if self.dataset_name in ['cifar10', 'tiny_imagenet']:
+            if self.dataset_name in ['cifar10','cifar10_less', 'tiny_imagenet']:
                 transform_list = []
             elif self.dataset_name in ['imagenet', 'custom']:
                 transform_list = [CenterCropLongEdge(), transforms.Resize(self.resize_size)]
@@ -85,6 +85,17 @@ class LoadDataset(Dataset):
 
     def load_dataset(self):
         if self.dataset_name == 'cifar10':
+            if self.hdf5_path is not None:
+                print('Loading %s into memory...' % self.hdf5_path)
+                with h5.File(self.hdf5_path, 'r') as f:
+                    self.data = f['imgs'][:]
+                    self.labels = f['labels'][:]
+            else:
+                self.data = CIFAR10(root=os.path.join('data', self.dataset_name),
+                                    train=self.train,
+                                    download=self.download)
+
+        elif self.dataset_name == 'cifar10_less':
             if self.hdf5_path is not None:
                 print('Loading %s into memory...' % self.hdf5_path)
                 with h5.File(self.hdf5_path, 'r') as f:

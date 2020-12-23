@@ -447,7 +447,7 @@ class Train_Eval(object):
                             fake_cls_mask = make_mask(fake_labels, self.num_classes, self.default_device)
                             cls_proxies_fake, cls_embed_fake, dis_out_fake = self.dis_model(fake_images, fake_labels)
                         elif self.conditional_strategy == 'ProjGAN_adv':
-                            dis_out_fake, _ = self.dis_model(fake_images, fake_labels)   
+                            dis_out_fake = self.dis_model(fake_images, fake_labels)   
                         else:
                             raise NotImplementedError
 

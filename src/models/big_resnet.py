@@ -391,88 +391,46 @@ class Discriminator(nn.Module):
             init_weights(self.modules, initialize)
 
 
-    def forward(self, x, label, evaluation=False):
+    def forward(self, x, label, evaluation=False, only_fc = False, fc = True):
 
         with torch.cuda.amp.autocast() if self.mixed_precision is True and evaluation is False else dummy_context_mgr() as mp:
             h = x
-            for index, blocklist in enumerate(self.blocks):
-                for block in blocklist:
-                    h = block(h)
-            h = self.activation(h)
-            h = torch.sum(h, dim=[2,3])
 
-            if self.conditional_strategy == 'no':
-                authen_output = torch.squeeze(self.linear1(h))
-                return authen_output
+            if not only_fc:
+                for index, blocklist in enumerate(self.blocks):
+                    for block in blocklist:
+                        h = block(h)
+                h = self.activation(h)
+                h = torch.sum(h, dim=[2,3])
+            
+            if fc:
+                if self.conditional_strategy == 'no':
+                    authen_output = torch.squeeze(self.linear1(h))
+                    return authen_output
 
-            elif self.conditional_strategy in ['ContraGAN', 'Proxy_NCA_GAN', 'NT_Xent_GAN']:
-                authen_output = torch.squeeze(self.linear1(h))
-                cls_proxy = self.embedding(label)
-                cls_embed = self.linear2(h)
-                if self.nonlinear_embed:
-                    cls_embed = self.linear3(self.activation(cls_embed))
-                if self.normalize_embed:
-                    cls_proxy = F.normalize(cls_proxy, dim=1)
-                    cls_embed = F.normalize(cls_embed, dim=1)
-                return cls_proxy, cls_embed, authen_output
+                elif self.conditional_strategy in ['ContraGAN', 'Proxy_NCA_GAN', 'NT_Xent_GAN']:
+                    authen_output = torch.squeeze(self.linear1(h))
+                    cls_proxy = self.embedding(label)
+                    cls_embed = self.linear2(h)
+                    if self.nonlinear_embed:
+                        cls_embed = self.linear3(self.activation(cls_embed))
+                    if self.normalize_embed:
+                        cls_proxy = F.normalize(cls_proxy, dim=1)
+                        cls_embed = F.normalize(cls_embed, dim=1)
+                    return cls_proxy, cls_embed, authen_output
 
-            elif self.conditional_strategy == 'ProjGAN':
-
-                authen_output = torch.squeeze(self.linear1(h))
-                proj = torch.sum(torch.mul(self.embedding(label), h), 1)
-                return proj + authen_output
-
-            elif self.conditional_strategy == 'ProjGAN_adv':
-
-                x_adv = h.detach().clone()
-                x_adv.requires_grad_ = True
-                emb = self.embedding(label)
-                def adv_forward(g, emb):
-                    authen_output = torch.squeeze(self.linear1(g))
-                    proj = torch.sum(torch.mul(emb, g), 1)
+                elif self.conditional_strategy == 'ProjGAN' or self.conditional_strategy == 'ProjGAN_adv':
+                    authen_output = torch.squeeze(self.linear1(h))
+                    proj = torch.sum(torch.mul(self.embedding(label), h), 1)
                     return proj + authen_output
+                    
+                elif self.conditional_strategy == 'ACGAN':
+                    authen_output = torch.squeeze(self.linear1(h))
+                    cls_output = self.linear4(h)
+                    return cls_output, authen_output
 
-                def loss_hinge_dis(dis_out_fake):
-                    return torch.mean(F.relu(1. + dis_out_fake))
-
-                #steps = self.steps
-                steps = 0
-                clip = False
-                gamma = self.gamma
-
-                for t in range(steps):
-                    print(t)
-                    out = adv_forward(x_adv, emb)
-                    loss_adv0 = loss_hinge_dis(out)
-                    grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
-                    x_adv.data.add_(gamma * torch.sign(grad0.data))
-
-                    if clip:
-                        linfball_proj(x, eps, x_adv, in_place=True)
-
-                authen_output = torch.squeeze(self.linear1(h))
-                
-                mul1 = torch.mul(emb, h)
-                proj      = torch.sum(mul1, 1)
-                real_output = proj + authen_output
-
-                #pdb.set_trace()
-                x_adv.requires_grad_ = False
-                authen_output_fake = torch.squeeze(self.linear1(x_adv))
-                mul2 = torch.mul(emb, x_adv)
-                proj_fake = torch.sum(mul2, 1)
-                real_output_fake = proj_fake + authen_output_fake
-
-                return real_output, real_output_fake
-                #return real_output, real_output
-
-            elif self.conditional_strategy == 'ACGAN':
-                authen_output = torch.squeeze(self.linear1(h))
-                cls_output = self.linear4(h)
-                return cls_output, authen_output
-
-            else:
-                raise NotImplementedError
+                else:
+                    raise NotImplementedError
 
 
 

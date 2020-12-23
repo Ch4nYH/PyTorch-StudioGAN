@@ -49,7 +49,7 @@ def count_parameters(module):
 
 def define_sampler(dataset_name, conditional_strategy):
     if conditional_strategy != "no":
-        if dataset_name == "cifar10":
+        if dataset_name == "cifar10" or dataset_name == "cifar10_less":
             sampler = "class_order_all"
         else:
             sampler = "class_order_some"
