@@ -279,8 +279,24 @@ class Train_Eval(object):
                             cls_proxies_real, cls_embed_real, dis_out_real = self.dis_model(real_images, real_labels)
                             cls_proxies_fake, cls_embed_fake, dis_out_fake = self.dis_model(fake_images, fake_labels)
                         elif self.conditional_strategy == 'ProjGAN_adv':
-                            dis_out_real = self.dis_model(real_images, real_labels)
-                            dis_out_fake = self.dis_model(fake_images, fake_labels)
+                            dis_out_real_prefc = self.dis_model(real_images, real_labels, fc=False)
+                            dis_out_fake_prefc = self.dis_model(fake_images, fake_labels, fc=False)
+                            
+                            loss_real = lambda x: torch.mean(F.relu(1. - dis_out_real))
+                            loss_fake = lambda x: torch.mean(F.relu(1. + dis_out_fake))
+                            dis_out_real_prefc_adv = PGD(dis_out_real_prefc, real_labels, loss_real, self.dis_model, 0)
+                            dis_out_fake_prefc_adv = PGD(dis_out_fake_prefc, fake_labels, loss_real, self.dis_model, 0)
+
+                            dis_out_real_prefc = self.dis_model(real_images, real_labels, fc=False)
+                            dis_out_fake_prefc = self.dis_model(fake_images, fake_labels, fc=False)
+
+                            dis_out_real = self.dis_model(dis_out_real_prefc, real_labels, only_fc=True)
+                            dis_out_fake = self.dis_model(dis_out_fake_prefc, fake_labels, only_fc=True)
+
+                            dis_out_real_adv = self.dis_model(dis_out_real_prefc_adv , real_labels, only_fc=True)
+                            dis_out_fake_adv = self.dis_model(dis_out_fake_prefc_adv, fake_labels, only_fc=True)
+
+
                         else:
                             raise NotImplementedError
                         
@@ -855,3 +871,26 @@ class Train_Eval(object):
             generator = change_generator_mode(self.gen_model, self.Gen_copy, standing_statistics, standing_step, self.prior,
                                               self.batch_size, self.z_dim, self.num_classes, self.default_device, training=True)
     ################################################################################################################################
+
+
+
+def PGD(x, label, loss, model=None, steps=1, gamma=0.1, eps=(1/255), randinit=False, clip=False):
+    
+    # Compute loss
+    x_adv = x.clone()
+    if randinit:
+        # adv noise (-eps, eps)
+        x_adv += (2.0 * torch.rand(x_adv.shape).cuda() - 1.0) * eps
+    x_adv = x_adv.cuda()
+    x = x.cuda()
+
+    for t in range(steps):
+        out = model(x_adv, label, only_fc=True)
+        loss_adv0 = -loss(out)
+        grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
+        x_adv.data.add_(gamma * torch.sign(grad0.data))
+
+        if clip:
+            linfball_proj(x, eps, x_adv, in_place=True)
+
+    return x_adv

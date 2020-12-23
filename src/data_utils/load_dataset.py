@@ -94,6 +94,7 @@ class LoadDataset(Dataset):
                 self.data = CIFAR10(root=os.path.join('data', self.dataset_name),
                                     train=self.train,
                                     download=self.download)
+                                    
 
         elif self.dataset_name == 'cifar10_less':
             if self.hdf5_path is not None:
