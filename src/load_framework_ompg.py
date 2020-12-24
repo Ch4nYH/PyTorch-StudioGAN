@@ -296,7 +296,7 @@ def load_frameowrk(mask_path, mask_round, gamma, steps, seed, disable_debugging_
     
 
     train_eval = Train_Eval(
-        prune_round = round, 
+        prune_round = mask_round, 
         gen_masks = gen_masks,
         run_name=run_name,
         best_step=best_step,

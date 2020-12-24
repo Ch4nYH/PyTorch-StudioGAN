@@ -402,6 +402,7 @@ class Discriminator(nn.Module):
                         h = block(h)
                 h = self.activation(h)
                 h = torch.sum(h, dim=[2,3])
+                
             if fc:
                 if self.conditional_strategy == 'no':
                     authen_output = torch.squeeze(self.linear1(h))
