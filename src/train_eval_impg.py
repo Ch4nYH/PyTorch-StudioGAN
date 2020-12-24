@@ -203,7 +203,7 @@ class Train_Eval(object):
             self.num_eval = {'train':50000, 'valid':50000}
         elif self.dataset_name == "tiny_imagenet":
             self.num_eval = {'train':50000, 'valid':10000}
-        elif self.dataset_name == "cifar10":
+        elif self.dataset_name == "cifar10" or self.dataset_name == "cifar10_less":
             self.num_eval = {'train':len(self.train_dataset.data), 'test':len(self.eval_dataset.data)}
         elif self.dataset_name == "custom":
             num_train_images = len(self.train_dataset.data)
