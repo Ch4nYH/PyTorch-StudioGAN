@@ -292,8 +292,8 @@ class Train_Eval(object):
                             dis_out_real_prefc = self.dis_model(real_images, real_labels, fc=False, only_fc=False)
                             dis_out_fake_prefc = self.dis_model(fake_images, fake_labels, fc=False, only_fc=False)
 
-                            dis_out_real = self.dis_model(dis_out_real_prefc, real_labels, only_fc=True, only_fc=True)
-                            dis_out_fake = self.dis_model(dis_out_fake_prefc, fake_labels, only_fc=True, only_fc=True)
+                            dis_out_real = self.dis_model(dis_out_real_prefc, real_labels, only_fc=True, fc=True)
+                            dis_out_fake = self.dis_model(dis_out_fake_prefc, fake_labels, only_fc=True, fc=True)
 
                             #dis_out_real_adv = self.dis_model(dis_out_real_prefc_adv, real_labels, only_fc=True)
                             #dis_out_fake_adv = self.dis_model(dis_out_fake_prefc_adv, fake_labels, only_fc=True)
