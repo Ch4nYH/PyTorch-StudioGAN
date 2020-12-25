@@ -264,8 +264,6 @@ class Train_Eval(object):
                                                  False, self.default_device)
                         
                         fake_images = self.gen_model(zs, fake_labels)
-                        print("FAKE IMAGES")
-                        print(fake_images)
                         if self.diff_aug:
                             fake_images = DiffAugment(fake_images, policy=self.policy)
                         if self.ada:

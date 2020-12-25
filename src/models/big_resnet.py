@@ -392,7 +392,7 @@ class Discriminator(nn.Module):
 
 
     def forward(self, x, label, evaluation=False, only_fc = False, fc = True):
-        print(x)
+        #print(x)
 
         with torch.cuda.amp.autocast() if self.mixed_precision is True and evaluation is False else dummy_context_mgr() as mp:
             h = x
@@ -423,7 +423,7 @@ class Discriminator(nn.Module):
                 elif self.conditional_strategy == 'ProjGAN' or self.conditional_strategy == 'ProjGAN_adv':
                     authen_output = torch.squeeze(self.linear1(h))
                     proj = torch.sum(torch.mul(self.embedding(label), h), 1)
-                    print(proj + authen_output)
+                    #print(proj + authen_output)
                     return proj + authen_output
                     
                 elif self.conditional_strategy == 'ACGAN':
@@ -434,7 +434,7 @@ class Discriminator(nn.Module):
                 else:
                     raise NotImplementedError
             else:
-                print(h)
+                #print(h)
                 return h
 
 

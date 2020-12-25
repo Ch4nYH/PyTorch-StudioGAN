@@ -32,7 +32,7 @@ def sample_latents(dist, batch_size, dim, truncated_factor=1, num_classes=None, 
         else:
             raise NotImplementedError
         
-        print("Y_FAKE: {}".format(y_fake))
+        #print("Y_FAKE: {}".format(y_fake))
         if sampler in ["class_order_some", "class_order_all"]:
             y_fake = []
             for idx in indices:
@@ -62,7 +62,7 @@ def sample_latents(dist, batch_size, dim, truncated_factor=1, num_classes=None, 
         elif dist == "hyper_sphere":
             latents = random_ball(batch_size, dim, perturb=perturb).to(device)
         
-        print("LATENTS: {}".format(latents))
+        #print("LATENTS: {}".format(latents))
         return latents, y_fake
 
 
