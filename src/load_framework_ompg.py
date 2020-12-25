@@ -272,7 +272,7 @@ def load_frameowrk(mask_path, mask_round, gamma, steps, seed, disable_debugging_
         g_checkpoint = torch.load(g_checkpoint_dir)
         d_checkpoint = torch.load(d_checkpoint_dir)
 
-        Gen, gen_masks = pruning_generate_extract(Gen, g_checkpoint['state_dict'], initial_G_weight, parallel)
+        Gen, gen_masks = pruning_generate_extract(Gen, g_checkpoint['state_dict'], initial_G_weigh t, parallel)
         if ema:
             Gen_copy, _ = pruning_generate_extract(Gen_copy, g_checkpoint['state_dict'], initial_G_weight, parallel)
         Dis.load_state_dict(initial_D_weight)
@@ -296,7 +296,7 @@ def load_frameowrk(mask_path, mask_round, gamma, steps, seed, disable_debugging_
     
 
     train_eval = Train_Eval(
-        prune_round = mask_round, 
+        prune_round = round_, 
         gen_masks = gen_masks,
         run_name=run_name,
         best_step=best_step,
