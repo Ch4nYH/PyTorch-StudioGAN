@@ -80,8 +80,8 @@
       },
   
       "initialization":{
-        "g_init": "ortho",
-        "d_init": "ortho"
+        "g_init": "xavier",
+        "d_init": "xavier"
       },
   
       "training_and_sampling_setting":{
