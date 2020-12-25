@@ -16,8 +16,6 @@ import torch
 import torch.nn.functional as F
 from torch.nn import DataParallel
 
-
-torch.manual_seed(1)
 def sample_latents(dist, batch_size, dim, truncated_factor=1, num_classes=None, perturb=None, device=torch.device("cpu"), sampler="default"):
     if num_classes:
         if sampler == "default":
