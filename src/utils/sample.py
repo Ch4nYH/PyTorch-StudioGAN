@@ -17,7 +17,7 @@ import torch.nn.functional as F
 from torch.nn import DataParallel
 
 
-
+torch.manual_seed(1)
 def sample_latents(dist, batch_size, dim, truncated_factor=1, num_classes=None, perturb=None, device=torch.device("cpu"), sampler="default"):
     if num_classes:
         if sampler == "default":
@@ -33,7 +33,8 @@ def sample_latents(dist, batch_size, dim, truncated_factor=1, num_classes=None, 
             y_fake = torch.tensor([sampler]*batch_size, dtype=torch.long).to(device)
         else:
             raise NotImplementedError
-
+        
+        print("Y_FAKE: {}".format(y_fake))
         if sampler in ["class_order_some", "class_order_all"]:
             y_fake = []
             for idx in indices:
@@ -62,6 +63,8 @@ def sample_latents(dist, batch_size, dim, truncated_factor=1, num_classes=None, 
             latents = torch.FloatTensor(batch_size, dim).uniform_(-1.0, 1.0).to(device)
         elif dist == "hyper_sphere":
             latents = random_ball(batch_size, dim, perturb=perturb).to(device)
+        
+        print("LATENTS: {}".format(latents))
         return latents, y_fake
 
 

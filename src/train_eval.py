@@ -245,6 +245,7 @@ class Train_Eval(object):
                         real_images, real_labels = next(train_iter)
 
                     real_images, real_labels = real_images.to(self.default_device), real_labels.to(self.default_device)
+                    print("REAL IMAGES STEP INDEX: {}".format(step_index))
                     with torch.cuda.amp.autocast() if self.mixed_precision else dummy_context_mgr() as mpc:
                         if self.diff_aug:
                             real_images = DiffAugment(real_images, policy=self.policy)
@@ -261,8 +262,10 @@ class Train_Eval(object):
                             zs = latent_optimise(zs, fake_labels, self.gen_model, self.dis_model, self.conditional_strategy,
                                                  self.latent_op_step, self.latent_op_rate, self.latent_op_alpha, self.latent_op_beta,
                                                  False, self.default_device)
-
+                        
                         fake_images = self.gen_model(zs, fake_labels)
+                        print("FAKE IMAGES")
+                        print(fake_images)
                         if self.diff_aug:
                             fake_images = DiffAugment(fake_images, policy=self.policy)
                         if self.ada:
