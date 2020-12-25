@@ -469,7 +469,7 @@ class Train_Eval(object):
                             raise NotImplementedError
 
                         gen_acml_loss = self.G_loss(dis_out_fake)
-
+                        print(gen_acml_loss)
                         if self.latent_op:
                             gen_acml_loss += transport_cost*self.latent_norm_reg_weight
 
