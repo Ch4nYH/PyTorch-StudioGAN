@@ -306,6 +306,7 @@ class Train_Eval(object):
                         #if self.conditional_strategy != 'ProjGAN_adv':
                         if True:
                             dis_acml_loss = self.D_loss(dis_out_real, dis_out_fake)
+                            print(dis_acml_loss)
                         else:
                             dis_acml_loss = (self.D_loss(dis_out_real, dis_out_fake) + self.D_loss(dis_out_real_adv, dis_out_fake_adv)) / 2
 
