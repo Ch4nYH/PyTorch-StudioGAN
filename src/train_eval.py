@@ -245,7 +245,6 @@ class Train_Eval(object):
                         real_images, real_labels = next(train_iter)
 
                     real_images, real_labels = real_images.to(self.default_device), real_labels.to(self.default_device)
-                    print("REAL IMAGES STEP INDEX: {}".format(step_index))
                     with torch.cuda.amp.autocast() if self.mixed_precision else dummy_context_mgr() as mpc:
                         if self.diff_aug:
                             real_images = DiffAugment(real_images, policy=self.policy)
@@ -304,10 +303,8 @@ class Train_Eval(object):
                             raise NotImplementedError
                         
                         #if self.conditional_strategy != 'ProjGAN_adv':
-                        #if self.conditional_strategy != 'ProjGAN_adv':
-                        if True:
+                        if self.conditional_strategy != 'ProjGAN_adv':
                             dis_acml_loss = self.D_loss(dis_out_real, dis_out_fake)
-                            print(dis_acml_loss)
                         else:
                             dis_acml_loss = (self.D_loss(dis_out_real, dis_out_fake) + self.D_loss(dis_out_real_adv, dis_out_fake_adv)) / 2
 
@@ -470,7 +467,6 @@ class Train_Eval(object):
                             raise NotImplementedError
 
                         gen_acml_loss = self.G_loss(dis_out_fake)
-                        print(gen_acml_loss)
                         if self.latent_op:
                             gen_acml_loss += transport_cost*self.latent_norm_reg_weight
 
