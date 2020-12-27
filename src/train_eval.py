@@ -285,8 +285,8 @@ class Train_Eval(object):
                             dis_out_real_prefc = self.dis_model(real_images, real_labels, fc=False)
                             dis_out_fake_prefc = self.dis_model(fake_images, fake_labels, fc=False)
                             
-                            loss_real = lambda x: torch.mean(F.relu(1. - dis_out_real))
-                            loss_fake = lambda x: torch.mean(F.relu(1. + dis_out_fake))
+                            loss_real = lambda x: torch.mean(F.relu(1. - x))
+                            loss_fake = lambda x: torch.mean(F.relu(1. + x))
                             dis_out_real_prefc_adv = PGD(dis_out_real_prefc, real_labels, loss_real, self.dis_model, steps=self.steps, gamma=self.gamma)
                             dis_out_fake_prefc_adv = PGD(dis_out_fake_prefc, fake_labels, loss_real, self.dis_model, steps=self.steps, gamma=self.gamma)
 
