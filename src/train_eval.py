@@ -73,7 +73,7 @@ class Train_Eval(object):
                  real_lambda, fake_lambda, zcr, gen_lambda, dis_lambda, sigma_noise, diff_aug, ada, prev_ada_p, ada_target, ada_length, prior,
                  truncated_factor, ema, latent_op, latent_op_rate, latent_op_step, latent_op_step4eval, latent_op_alpha, latent_op_beta,
                  latent_norm_reg_weight, default_device, print_every, save_every, checkpoint_dir, evaluate, mu, sigma, best_fid,
-                 best_fid_checkpoint_path, mixed_precision, train_config, model_config,):
+                 best_fid_checkpoint_path, mixed_precision, train_config, model_config, gamma, steps):
 
         self.run_name = run_name
         self.best_step = best_step
@@ -169,6 +169,9 @@ class Train_Eval(object):
         self.l2_loss = torch.nn.MSELoss()
         self.ce_loss = torch.nn.CrossEntropyLoss()
         self.policy = "color,translation,cutout"
+
+        self.steps = steps
+        self.gamma = gamma
 
         sampler = define_sampler(self.dataset_name, self.conditional_strategy)
 
@@ -284,8 +287,8 @@ class Train_Eval(object):
                             
                             loss_real = lambda x: torch.mean(F.relu(1. - dis_out_real))
                             loss_fake = lambda x: torch.mean(F.relu(1. + dis_out_fake))
-                            dis_out_real_prefc_adv = PGD(dis_out_real_prefc, real_labels, loss_real, self.dis_model, 0)
-                            dis_out_fake_prefc_adv = PGD(dis_out_fake_prefc, fake_labels, loss_real, self.dis_model, 0)
+                            dis_out_real_prefc_adv = PGD(dis_out_real_prefc, real_labels, loss_real, self.dis_model, steps=self.steps, gamma=self.gamma)
+                            dis_out_fake_prefc_adv = PGD(dis_out_fake_prefc, fake_labels, loss_real, self.dis_model, steps=self.steps, gamma=self.gamma)
 
                             fake_images = fake_images.detach()
                             dis_out_real_prefc = self.dis_model(real_images, real_labels, fc=False, only_fc=False)
