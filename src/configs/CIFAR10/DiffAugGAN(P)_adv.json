@@ -12,7 +12,7 @@
     "train": {
       "model": {
         "architecture": "big_resnet",
-        "conditional_strategy": "ProjGAN",
+        "conditional_strategy": "ProjGAN_adv",
         "pos_collected_numerator": false,
         "hypersphere_dim": "N/A",
         "nonlinear_embed": false,
@@ -44,7 +44,7 @@
         "beta2": 0.999,
         "g_steps_per_iter": 1,
         "d_steps_per_iter": 5,
-        "total_step": 10000
+        "total_step": 200000
       },
   
       "loss_function": {
@@ -105,7 +105,7 @@
   
         "ema": true,
         "ema_decay": 0.9999,
-        "ema_start": 100
+        "ema_start": 1000
       }
     }
   }
