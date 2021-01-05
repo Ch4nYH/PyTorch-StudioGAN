@@ -49,7 +49,7 @@ def main():
     parser.add_argument('--eval_type', type=str, default='test', help='[train/valid/test]')
     parser.add_argument('--gamma', type=float, default=1/255)
     parser.add_argument('--steps', type=int, default=1)
-    parser.add_argument('--ratio', default=None)
+    parser.add_argument('--ratio', default=None, type=float)
     args = parser.parse_args()
 
     if not args.train and \
