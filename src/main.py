@@ -49,6 +49,7 @@ def main():
     parser.add_argument('--eval_type', type=str, default='test', help='[train/valid/test]')
     parser.add_argument('--gamma', type=float, default=1/255)
     parser.add_argument('--steps', type=int, default=1)
+    parser.add_argument('--ratio', default=None)
     args = parser.parse_args()
 
     if not args.train and \
@@ -69,7 +70,7 @@ def main():
         raise NotImplementedError
 
     dataset = model_config['data_processing']['dataset_name']
-    if dataset == 'cifar10':
+    if dataset == 'cifar10' or dataset == 'cifar100':
         assert args.eval_type in ['train', 'test'], "cifar10 does not contain dataset for validation"
     elif dataset in ['imagenet', 'tiny_imagenet', 'custom']:
         assert args.eval_type == 'train' or args.eval_type == 'valid',\

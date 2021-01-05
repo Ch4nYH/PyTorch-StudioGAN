@@ -43,7 +43,7 @@ def load_frameowrk(seed, gamma, steps, disable_debugging_API, num_workers, confi
                    d_spectral_norm, activation_fn, attention, attention_after_nth_gen_block, attention_after_nth_dis_block, z_dim,
                    shared_dim, g_conv_dim, d_conv_dim, G_depth, D_depth, optimizer, batch_size, d_lr, g_lr, momentum, nesterov, alpha,
                    beta1, beta2, total_step, adv_loss, cr, g_init, d_init, random_flip_preprocessing, prior, truncated_factor,
-                   ema, ema_decay, ema_start, synchronized_bn, mixed_precision, hdf5_path_train, train_config, model_config, masks_path = None,  **_):
+                   ema, ema_decay, ema_start, synchronized_bn, mixed_precision, hdf5_path_train, train_config, model_config, ratio, masks_path = None,  **_):
     if seed == 0:
         cudnn.benchmark = True
         cudnn.deterministic = False
@@ -80,7 +80,7 @@ def load_frameowrk(seed, gamma, steps, disable_debugging_API, num_workers, confi
 
     logger.info('Loading train datasets...')
     train_dataset = LoadDataset(dataset_name, data_path, train=True, download=True, resize_size=img_size, hdf5_path=hdf5_path_train,
-                                random_flip=random_flip_preprocessing)
+                                random_flip=random_flip_preprocessing, ratio=ratio)
     if reduce_train_dataset < 1.0:
         num_train = int(reduce_train_dataset*len(train_dataset))
         train_dataset, _ = torch.utils.data.random_split(train_dataset, [num_train, len(train_dataset) - num_train])

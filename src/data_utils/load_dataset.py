@@ -15,7 +15,7 @@ from PIL import ImageOps, Image
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
-from torchvision.datasets import CIFAR10, STL10
+from torchvision.datasets import CIFAR10, CIFAR100
 from torchvision.datasets import ImageFolder
 
 
@@ -53,7 +53,7 @@ class CenterCropLongEdge(object):
 
 
 class LoadDataset(Dataset):
-    def __init__(self, dataset_name, data_path, train, download, resize_size, hdf5_path=None, random_flip=False):
+    def __init__(self, dataset_name, data_path, train, download, resize_size, hdf5_path=None, random_flip=False,ratio=None):
         super(LoadDataset, self).__init__()
         self.dataset_name = dataset_name
         self.data_path = data_path
@@ -66,7 +66,7 @@ class LoadDataset(Dataset):
         self.norm_mean = [0.5,0.5,0.5]
         self.norm_std = [0.5,0.5,0.5]
         self.pad = int(resize_size//8)
-
+        self.ratio = ratio
         if self.hdf5_path is not None:
             transform_list = [transforms.ToPILImage()]
         else:
@@ -107,7 +107,20 @@ class LoadDataset(Dataset):
                                     train=self.train,
                                     download=self.download)
                 if self.train:
-                    self.data = torch.utils.data.Subset(self.data, np.arange(int(len(self.data) * 0.1)))
+                    self.data = torch.utils.data.Subset(self.data, np.arange(int(len(self.data) * self.ratio)))
+
+        elif self.dataset_name == 'cifar100_less':
+            if self.hdf5_path is not None:
+                print('Loading %s into memory...' % self.hdf5_path)
+                with h5.File(self.hdf5_path, 'r') as f:
+                    self.data = f['imgs'][:]
+                    self.labels = f['labels'][:]
+            else:
+                self.data = CIFAR100(root=os.path.join('data', self.dataset_name),
+                                    train=self.train,
+                                    download=self.download)
+                if self.train:
+                    self.data = torch.utils.data.Subset(self.data, np.arange(int(len(self.data) * self.ratio)))
 
         elif self.dataset_name == 'imagenet':
             if self.hdf5_path is not None:
@@ -119,6 +132,21 @@ class LoadDataset(Dataset):
                 mode = 'train' if self.train == True else 'valid'
                 root = os.path.join('data','ILSVRC2012', mode)
                 self.data = ImageFolder(root=root)
+
+        elif self.dataset_name == 'imagenet_less_0.25':
+            if self.hdf5_path is not None:
+                print('Loading %s into memory...' % self.hdf5_path)
+                with h5.File(self.hdf5_path, 'r') as f:
+                    self.data = f['imgs'][:]
+                    self.labels = f['labels'][:]
+            else:
+                mode = 'train' if self.train == True else 'valid'
+                root = os.path.join('data','ILSVRC2012', mode)
+                self.data = ImageFolder(root=root)
+
+            if mode == 'train':
+                self.data = torch.utils.data.Subset(self.data, np.linspace(0, len(self.data), num=int(len(self.data) * 0.25), dtype="int32"))
+
 
         elif self.dataset_name == "tiny_imagenet":
             if self.hdf5_path is not None:
