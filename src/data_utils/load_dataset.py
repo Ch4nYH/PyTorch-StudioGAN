@@ -146,8 +146,8 @@ class LoadDataset(Dataset):
                 root = os.path.join('data','ILSVRC2012', mode)
                 self.data = ImageFolder(root=root)
 
-            if mode == 'train':
-                self.data = torch.utils.data.Subset(self.data, np.linspace(0, len(self.data), num=int(len(self.data) * 0.25), dtype="int32"))
+                if mode == 'train':
+                    self.data = torch.utils.data.Subset(self.data, np.linspace(0, len(self.data), num=int(len(self.data) * 0.25), dtype="int32"))
 
 
         elif self.dataset_name == "tiny_imagenet":
