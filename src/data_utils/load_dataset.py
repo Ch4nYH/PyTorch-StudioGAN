@@ -119,6 +119,8 @@ class LoadDataset(Dataset):
                 self.data = CIFAR100(root=os.path.join('data', self.dataset_name),
                                     train=self.train,
                                     download=self.download)
+                print(len(self.data))
+                print(self.ratio)
                 if self.train:
                     self.data = torch.utils.data.Subset(self.data, np.arange(int(len(self.data) * self.ratio)))
 
