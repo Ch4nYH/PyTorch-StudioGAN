@@ -198,12 +198,18 @@ class Train_Eval(object):
 
         if self.dataset_name in ["imagenet"]:
             self.num_eval = {'train':50000, 'valid':50000}
+        elif self.dataset_name in ["imagenet_less_0.25"]:
+            self.num_eval = {'train':50000, 'valid':50000}
+        elif self.dataset_name in ["imagenet_less"]:
+            self.num_eval = {'train':50000, 'valid':50000}
         elif self.dataset_name == "tiny_imagenet":
             self.num_eval = {'train':50000, 'valid':10000}
         elif self.dataset_name == "cifar10":
             self.num_eval = {'train':50000, 'test':10000}
         elif self.dataset_name == "cifar10_less":
-            self.num_eval = {'train':5000, 'test':10000}
+            self.num_eval = {'train':len(self.train_dataset.data), 'test':len(self.eval_dataset.data)}
+        elif self.dataset_name in ["cifar100_less"]:
+            self.num_eval = {'train':len(self.train_dataset.data), 'valid':len(self.eval_dataset.data)}
         elif self.dataset_name == "custom":
             num_train_images = len(self.train_dataset.data)
             num_eval_images = len(self.eval_dataset.data)
