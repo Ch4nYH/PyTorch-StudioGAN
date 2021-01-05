@@ -3,7 +3,7 @@
       "dataset_name": "cifar100_less",
       "data_path": "./data/cifar100",
       "img_size": 32,
-      "num_classes": 10,
+      "num_classes": 100,
       "batch_size4prcsing": 256,
       "chunk_size": 500,
       "compression": false
