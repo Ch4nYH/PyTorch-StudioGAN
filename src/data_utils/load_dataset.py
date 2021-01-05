@@ -72,7 +72,7 @@ class LoadDataset(Dataset):
         else:
             if self.dataset_name in ['cifar10','cifar10_less', 'tiny_imagenet','cifar100_less']:
                 transform_list = []
-            elif self.dataset_name in ['imagenet', 'custom','imagenet_less_0.25']:
+            elif self.dataset_name in ['imagenet', 'custom','imagenet_less', 'imagenet_less_0.25']:
                 transform_list = [CenterCropLongEdge(), transforms.Resize(self.resize_size)]
 
         if random_flip:
