@@ -176,6 +176,9 @@ class Train_Eval(object):
         self.ce_loss = torch.nn.CrossEntropyLoss()
         self.policy = "color,translation,cutout"
 
+        self.steps = steps
+        self.gamma = gamma
+
         sampler = define_sampler(self.dataset_name, self.conditional_strategy)
 
         check_flag_1(self.tempering_type, self.pos_collected_numerator, self.conditional_strategy, self.diff_aug, self.ada,
