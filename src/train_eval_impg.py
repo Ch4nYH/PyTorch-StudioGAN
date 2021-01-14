@@ -293,8 +293,23 @@ class Train_Eval(object):
                             cls_proxies_real, cls_embed_real, dis_out_real = self.dis_model(real_images, real_labels)
                             cls_proxies_fake, cls_embed_fake, dis_out_fake = self.dis_model(fake_images, fake_labels)
                         elif self.conditional_strategy == 'ProjGAN_adv':
-                            dis_out_fake, dis_out_fake_adv = self.dis_model(fake_images, fake_labels)
-                            dis_out_real, dis_out_real_adv = self.dis_model(real_images, real_labels)
+                            dis_out_real_prefc = self.dis_model(real_images, real_labels, fc=False)
+                            dis_out_fake_prefc = self.dis_model(fake_images, fake_labels, fc=False)
+                            
+                            loss_real = lambda x: torch.mean(F.relu(1. - x))
+                            loss_fake = lambda x: torch.mean(F.relu(1. + x))
+                            dis_out_real_prefc_adv = PGD(dis_out_real_prefc, real_labels, loss_real, self.dis_model, steps=self.steps, gamma=self.gamma)
+                            dis_out_fake_prefc_adv = PGD(dis_out_fake_prefc, fake_labels, loss_real, self.dis_model, steps=self.steps, gamma=self.gamma)
+
+                            fake_images = fake_images.detach()
+                            dis_out_real_prefc = self.dis_model(real_images, real_labels, fc=False, only_fc=False)
+                            dis_out_fake_prefc = self.dis_model(fake_images, fake_labels, fc=False, only_fc=False)
+
+                            dis_out_real = self.dis_model(dis_out_real_prefc, real_labels, only_fc=True, fc=True)
+                            dis_out_fake = self.dis_model(dis_out_fake_prefc, fake_labels, only_fc=True, fc=True)
+
+                            dis_out_real_adv = self.dis_model(dis_out_real_prefc_adv, real_labels, only_fc=True)
+                            dis_out_fake_adv = self.dis_model(dis_out_fake_prefc_adv, fake_labels, only_fc=True)
                         else:
                             raise NotImplementedError
                         
@@ -443,7 +458,17 @@ class Train_Eval(object):
                                                                  self.latent_op_step, self.latent_op_rate, self.latent_op_alpha,
                                                                  self.latent_op_beta, True, self.default_device)
 
-                        fake_images = self.gen_model(zs, fake_labels)
+                        if not self.conditional_strategy == 'ProjGAN_adv':
+                            fake_images = self.gen_model(zs, fake_labels)
+                        else:
+                            gen_out_prefc, labels_prefc = self.gen_model(zs, fake_labels, only_l1=True)
+                            
+                            loss_fake = lambda x: -torch.mean(x)
+                            gen_out_adv = PGD_G(gen_out_prefc, labels_prefc, fake_labels, loss_fake, self.gen_model, self.dis_model, steps=self.steps, gamma=self.gamma)
+                            
+                            fake_images = self.gen_model(gen_out_prefc, labels_prefc, l1=False)
+                            fake_images_adv = self.gen_model(gen_out_adv, labels_prefc, l1=False)
+
                         if self.diff_aug:
                             fake_images = DiffAugment(fake_images, policy=self.policy)
                         if self.ada:
@@ -457,7 +482,8 @@ class Train_Eval(object):
                             fake_cls_mask = make_mask(fake_labels, self.num_classes, self.default_device)
                             cls_proxies_fake, cls_embed_fake, dis_out_fake = self.dis_model(fake_images, fake_labels)
                         elif self.conditional_strategy == 'ProjGAN_adv':
-                            dis_out_fake = self.dis_model(fake_images, fake_labels)   
+                            dis_out_fake = self.dis_model(fake_images, fake_labels)
+                            dis_out_adv = self.dis_model(fake_images_adv, fake_labels)  
                         else:
                             raise NotImplementedError
 
@@ -481,6 +507,8 @@ class Train_Eval(object):
                             fake_images_aug = CR_DiffAug(fake_images)
                             _, cls_embed_fake_aug, dis_out_fake_aug = self.dis_model(fake_images_aug, fake_labels)
                             gen_acml_loss += self.contrastive_lambda*self.NT_Xent_criterion(cls_embed_fake, cls_embed_fake_aug, t)
+                        elif self.conditional_strategy == 'ProjGAN_adv':
+                            gen_acml_loss = (self.G_loss(dis_out_fake) + self.G_loss(dis_out_adv)) / 2
                         else:
                             pass
 
@@ -882,3 +910,44 @@ class Train_Eval(object):
             generator = change_generator_mode(self.gen_model, self.Gen_copy, standing_statistics, standing_step, self.prior,
                                               self.batch_size, self.z_dim, self.num_classes, self.default_device, training=True)
     ################################################################################################################################
+
+
+def PGD(x, label, loss, model=None, steps=1, gamma=0.1, eps=(1/255), randinit=False, clip=False):
+    
+    # Compute loss
+    x_adv = x.clone()
+    if randinit:
+        # adv noise (-eps, eps)
+        x_adv += (2.0 * torch.rand(x_adv.shape).cuda() - 1.0) * eps
+    x_adv = x_adv.cuda()
+    x = x.cuda()
+
+    for t in range(steps):
+        out = model(x_adv, label, only_fc=True)
+        loss_adv0 = -loss(out)
+        grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
+        x_adv.data.add_(gamma * torch.sign(grad0.data))
+
+        if clip:
+            linfball_proj(x, eps, x_adv, in_place=True)
+
+    return x_adv
+
+def PGD_G(x, gen_labels, label, loss, gen_model, dis_model, steps=1, gamma=0.1, eps=(1/255), randinit=False, clip=False):
+    
+    # Compute loss
+    x_adv = x.clone()
+    x_adv = x_adv.cuda()
+    x = x.cuda()
+
+    for t in range(steps):
+        out = gen_model(x_adv, gen_labels, l1=False)
+        out = dis_model(out, label)
+        loss_adv0 = -loss(out)
+        grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
+        x_adv.data.add_(gamma * torch.sign(grad0.data))
+
+        if clip:
+            linfball_proj(x, eps, x_adv, in_place=True)
+
+    return x_adv
