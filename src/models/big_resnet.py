@@ -167,7 +167,8 @@ class Generator(nn.Module):
                 act = act.view(-1, self.in_dims[0], self.bottom, self.bottom)
             else:
                 labels = label
-                
+                act = z
+
             if only_l1:
                 return act, labels
 
