@@ -455,8 +455,19 @@ class Train_Eval(object):
                             zs, transport_cost = latent_optimise(zs, fake_labels, self.gen_model, self.dis_model, self.conditional_strategy,
                                                                  self.latent_op_step, self.latent_op_rate, self.latent_op_alpha,
                                                                  self.latent_op_beta, True, self.default_device)
+                        if not self.conditional_strategy == 'ProjGAN_adv':
+                            fake_images = self.gen_model(zs, fake_labels)
+                        else:
+                            gen_out_prefc, labels_prefc = self.gen_model(zs, fake_labels, only_l1=True)
+                            
+                            loss_fake = lambda x: -torch.mean(x)
+                            gen_out_adv = PGD_G(gen_out_prefc, labels_prefc, fake_labels, self.gen_model, self.dis_model, loss_fake, self.dis_model, steps=self.steps, gamma=self.gamma)
+                            
+                            fake_images = self.gen_model(gen_out_prefc, fake_labels, l1=False)
+                            fake_images_adv = self.gen_model(gen_out_adv, fake_labels, l1=False)
 
-                        fake_images = self.gen_model(zs, fake_labels)
+
+
                         if self.diff_aug:
                             fake_images = DiffAugment(fake_images, policy=self.policy)
                         if self.ada:
@@ -471,6 +482,8 @@ class Train_Eval(object):
                             cls_proxies_fake, cls_embed_fake, dis_out_fake = self.dis_model(fake_images, fake_labels)
                         elif self.conditional_strategy == 'ProjGAN_adv':
                             dis_out_fake = self.dis_model(fake_images, fake_labels)
+                            dis_out_adv = self.dis_model(fake_images_adv, fake_labels)
+
                         else:
                             raise NotImplementedError
 
@@ -493,6 +506,8 @@ class Train_Eval(object):
                             fake_images_aug = CR_DiffAug(fake_images)
                             _, cls_embed_fake_aug, dis_out_fake_aug = self.dis_model(fake_images_aug, fake_labels)
                             gen_acml_loss += self.contrastive_lambda*self.NT_Xent_criterion(cls_embed_fake, cls_embed_fake_aug, t)
+                        elif self.conditional_strategy == 'ProjGAN_adv':
+                            gen_acml_loss = (self.G_loss(dis_out_fake) + self.G_loss(dis_out_adv)) / 2
                         else:
                             pass
 
@@ -894,6 +909,25 @@ def PGD(x, label, loss, model=None, steps=1, gamma=0.1, eps=(1/255), randinit=Fa
 
     for t in range(steps):
         out = model(x_adv, label, only_fc=True)
+        loss_adv0 = -loss(out)
+        grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
+        x_adv.data.add_(gamma * torch.sign(grad0.data))
+
+        if clip:
+            linfball_proj(x, eps, x_adv, in_place=True)
+
+    return x_adv
+
+def PGD_G(x, gen_labels, label, loss, gen_model, dis_model, steps=1, gamma=0.1, eps=(1/255), randinit=False, clip=False):
+    
+    # Compute loss
+    x_adv = x.clone()
+    x_adv = x_adv.cuda()
+    x = x.cuda()
+
+    for t in range(steps):
+        out = gen_model(x_adv, gen_labels, l1=False)
+        out = dis_model(out, label)
         loss_adv0 = -loss(out)
         grad0 = torch.autograd.grad(loss_adv0, x_adv, only_inputs=True)[0]
         x_adv.data.add_(gamma * torch.sign(grad0.data))

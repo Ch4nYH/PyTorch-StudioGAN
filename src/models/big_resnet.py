@@ -152,18 +152,26 @@ class Generator(nn.Module):
             init_weights(self.modules, initialize)
 
 
-    def forward(self, z, label, shared_label=None, evaluation=False):
+    def forward(self, z, label, shared_label=None, evaluation=False, only_l1=False, l1=True):
         with torch.cuda.amp.autocast() if self.mixed_precision is True and evaluation is False else dummy_context_mgr() as mp:
-            zs = torch.split(z, self.chunk_size, 1)
-            z = zs[0]
-            if shared_label is None:
-                shared_label = self.shared(label)
+            if l1:
+                zs = torch.split(z, self.chunk_size, 1)
+                z = zs[0]
+                if shared_label is None:
+                    shared_label = self.shared(label)
+                else:
+                    pass
+                labels = [torch.cat([shared_label, item], 1) for item in zs[1:]]
+                
+                act = self.linear0(z)
+                act = act.view(-1, self.in_dims[0], self.bottom, self.bottom)
             else:
-                pass
-            labels = [torch.cat([shared_label, item], 1) for item in zs[1:]]
+                labels = label
+                
+            if only_l1:
+                return act, labels
 
-            act = self.linear0(z)
-            act = act.view(-1, self.in_dims[0], self.bottom, self.bottom)
+
             counter = 0
             for index, blocklist in enumerate(self.blocks):
                 for block in blocklist:
