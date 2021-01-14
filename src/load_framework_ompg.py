@@ -379,6 +379,8 @@ def load_frameowrk(mask_path, mask_round, gamma, steps, seed, disable_debugging_
         mixed_precision=mixed_precision,
         train_config=train_config,
         model_config=model_config,
+        gamma = gamma,
+        steps = steps
     )
 
     if train_config['train']:

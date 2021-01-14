@@ -77,7 +77,7 @@ class Train_Eval(object):
                  real_lambda, fake_lambda, zcr, gen_lambda, dis_lambda, sigma_noise, diff_aug, ada, prev_ada_p, ada_target, ada_length, prior,
                  truncated_factor, ema, latent_op, latent_op_rate, latent_op_step, latent_op_step4eval, latent_op_alpha, latent_op_beta,
                  latent_norm_reg_weight, default_device, print_every, save_every, checkpoint_dir, evaluate, mu, sigma, best_fid,
-                 best_fid_checkpoint_path, mixed_precision, train_config, model_config,):
+                 best_fid_checkpoint_path, mixed_precision, train_config, model_config, gamma, steps):
 
         self.prune_round = prune_round
         self.gen_masks = gen_masks
