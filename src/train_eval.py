@@ -461,7 +461,7 @@ class Train_Eval(object):
                             gen_out_prefc, labels_prefc = self.gen_model(zs, fake_labels, only_l1=True)
                             
                             loss_fake = lambda x: -torch.mean(x)
-                            gen_out_adv = PGD_G(gen_out_prefc, labels_prefc, fake_labels, self.gen_model, self.dis_model, loss_fake, self.dis_model, steps=self.steps, gamma=self.gamma)
+                            gen_out_adv = PGD_G(gen_out_prefc, labels_prefc, fake_labels, self.gen_model, self.dis_model, loss_fake, steps=self.steps, gamma=self.gamma)
                             
                             fake_images = self.gen_model(gen_out_prefc, fake_labels, l1=False)
                             fake_images_adv = self.gen_model(gen_out_adv, fake_labels, l1=False)
