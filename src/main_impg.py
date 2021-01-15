@@ -48,6 +48,8 @@ def main():
     parser.add_argument('--save_every', type=int, default=2000, help='control evaluation and save interval')
     parser.add_argument('--eval_type', type=str, default='test', help='[train/valid/test]')
     parser.add_argument('--ratio', default=None, type=float)
+    parser.add_argument('--gamma', type=float, default=0.01)
+    parser.add_argument('--steps', type=int, default=1)
     parser.add_argument('--prune_round', default=0, type=int)
     args = parser.parse_args()
 

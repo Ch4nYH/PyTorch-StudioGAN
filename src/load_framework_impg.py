@@ -40,7 +40,7 @@ RUN_NAME_FORMAT = (
     "{phase}-"
     "{timestamp}"
 )
-def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkpoint_folder, reduce_train_dataset, standing_statistics,
+def load_frameowrk(seed, gamma, steps, disable_debugging_API, num_workers, config_path, checkpoint_folder, reduce_train_dataset, standing_statistics,
                    standing_step, freeze_layers, load_current, eval_type, dataset_name, num_classes, img_size, data_path,
                    architecture, conditional_strategy, hypersphere_dim, nonlinear_embed, normalize_embed, g_spectral_norm,
                    d_spectral_norm, activation_fn, attention, attention_after_nth_gen_block, attention_after_nth_dis_block, z_dim,
@@ -259,6 +259,8 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
     for round_ in range(start_round, 10):
 
         train_eval = Train_Eval(
+            gamma = gamma,
+            steps = steps,
             prune_round = round_, 
             gen_masks = gen_masks,
             run_name=run_name,
