@@ -171,7 +171,6 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         mu, sigma, inception_model = None, None, None
 
     gen_masks = None
-
     start_round = 0
     if train_config['checkpoint_folder'] is not None:
         if isinstance(Gen, DataParallel):
@@ -187,7 +186,7 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
         if not exists(abspath(checkpoint_folder)):
             raise NotADirectoryError
 
-        round_ = 0
+        round_ = train_config['prune_round']
         checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
         g_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=G-{}-{when}-weights-step*.pth".format(round_, when=when)))[0]
         d_checkpoint_dir = glob.glob(join(checkpoint_dir,"model=D-{}-{when}-weights-step*.pth".format(round_, when=when)))[0]
@@ -252,15 +251,15 @@ def load_frameowrk(seed, disable_debugging_API, num_workers, config_path, checkp
                                                 run_name=run_name,
                                                 logger=logger,
                                                 device=default_device)
-        start_round = 1
+        start_round = round_ + 1
     
     else:
         checkpoint_dir = make_checkpoint_dir(checkpoint_folder, run_name)
 
-    for round in range(start_round, 10):
+    for round_ in range(start_round, 10):
 
         train_eval = Train_Eval(
-            prune_round = round, 
+            prune_round = round_, 
             gen_masks = gen_masks,
             run_name=run_name,
             best_step=best_step,
