@@ -51,6 +51,7 @@ def main():
     parser.add_argument('--mask_round', type=int, default=None)
     parser.add_argument('--gamma', type=float, default=0)
     parser.add_argument('--steps', type=int, default=0)
+    parser.add_argument('--ratio', type=float, default=1.0)
     args = parser.parse_args()
 
     if not args.train and \

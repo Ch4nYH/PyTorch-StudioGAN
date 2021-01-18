@@ -85,7 +85,7 @@ def load_frameowrk(mask_path, mask_round, gamma, steps, seed, disable_debugging_
 
     logger.info('Loading train datasets...')
     train_dataset = LoadDataset(dataset_name, data_path, train=True, download=True, resize_size=img_size, hdf5_path=hdf5_path_train,
-                                random_flip=random_flip_preprocessing)
+                                random_flip=random_flip_preprocessing, ratio=train_config['ratio'])
     if reduce_train_dataset < 1.0:
         num_train = int(reduce_train_dataset*len(train_dataset))
         train_dataset, _ = torch.utils.data.random_split(train_dataset, [num_train, len(train_dataset) - num_train])
