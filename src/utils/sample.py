@@ -23,8 +23,8 @@ def sample_latents(dist, batch_size, dim, truncated_factor=1, num_classes=None, 
         elif sampler == "class_order_some":
             assert batch_size % 8 == 0, "The size of the batches should be a multiple of 8."
             num_classes_plot = batch_size//8
-            #indices = np.random.permutation(num_classes)[:num_classes_plot]
-            indices = np.array([151,152,153,154,155,156,157,158])[:num_classes_plot]
+            indices = np.random.permutation(num_classes)[:num_classes_plot]
+            #indices = np.array([151,152,153,154,155,156,157,158])[:num_classes_plot]
         elif sampler == "class_order_all":
             batch_size = num_classes*8
             indices = [c for c in range(num_classes)]
