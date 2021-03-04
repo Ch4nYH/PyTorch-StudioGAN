@@ -112,19 +112,21 @@ class Generator(nn.Module):
 
 
 class DiscBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, d_spectral_norm, activation_fn):
+    def __init__(self, in_channels, out_channels, d_spectral_norm, activation_fn, index = 1):
         super(DiscBlock, self).__init__()
         self.d_spectral_norm = d_spectral_norm
 
-        if d_spectral_norm:
-            self.conv0 = snconv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1)
-            #self.conv1 = snconv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=4, stride=2, padding=1)
-        else:
+        if index != 0:
             self.conv0 = conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=4, stride=2, padding=1)
             #self.conv1 = conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=4, stride=2, padding=1)
 
             self.bn0 = batchnorm_2d(in_features=out_channels)
             #self.bn1 = batchnorm_2d(in_features=out_channels)
+        else:
+            self.conv0 = conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1)
+            #self.conv1 = conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=4, stride=2, padding=1)
+
+            self.bn0 = batchnorm_2d(in_features=out_channels)
 
         if activation_fn == "ReLU":
             self.activation = nn.ReLU(inplace=True)
@@ -170,7 +172,7 @@ class Discriminator(nn.Module):
             self.blocks += [[DiscBlock(in_channels=self.in_dims[index],
                                        out_channels=self.out_dims[index],
                                        d_spectral_norm=d_spectral_norm,
-                                       activation_fn=activation_fn)]]
+                                       activation_fn=activation_fn, index=index)]]
 
             if index+1 == attention_after_nth_dis_block and attention is True:
                 self.blocks += [[Self_Attn(self.out_dims[index], d_spectral_norm)]]
