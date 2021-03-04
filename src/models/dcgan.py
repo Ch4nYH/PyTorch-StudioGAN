@@ -178,9 +178,9 @@ class Discriminator(nn.Module):
         self.blocks = nn.ModuleList([nn.ModuleList(block) for block in self.blocks])
 
         if self.d_spectral_norm:
-            self.conv = snconv2d(in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1)
+            self.conv = snconv2d(in_channels=256, out_channels=512, kernel_size=4, stride=2, padding=1)
         else:
-            self.conv = conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1)
+            self.conv = conv2d(in_channels=256, out_channels=512, kernel_size=4, stride=2, padding=1)
             self.bn = batchnorm_2d(in_features=512)
 
         if activation_fn == "ReLU":
@@ -208,16 +208,16 @@ class Discriminator(nn.Module):
             else:
                 pass
         else:
-            self.linear1 = linear(in_features=512, out_features=1)
+            self.linear1 = linear(in_features=8192, out_features=1)
             if self.conditional_strategy in ['ContraGAN', 'Proxy_NCA_GAN', 'NT_Xent_GAN']:
-                self.linear2 = linear(in_features=512, out_features=hypersphere_dim)
+                self.linear2 = linear(in_features=8192, out_features=hypersphere_dim)
                 if self.nonlinear_embed:
                     self.linear3 = linear(in_features=hypersphere_dim, out_features=hypersphere_dim)
                 self.embedding = embedding(num_classes, hypersphere_dim)
             elif self.conditional_strategy == 'ProjGAN':
-                self.embedding = embedding(num_classes, 512)
+                self.embedding = embedding(num_classes, 8192)
             elif self.conditional_strategy == 'ACGAN':
-                self.linear4 = linear(in_features=512, out_features=num_classes)
+                self.linear4 = linear(in_features=8192, out_features=num_classes)
             else:
                 pass
 
