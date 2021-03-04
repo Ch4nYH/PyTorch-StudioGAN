@@ -238,7 +238,10 @@ class Discriminator(nn.Module):
             if self.d_spectral_norm is False:
                 h = self.bn(h)
             h = self.activation(h)
+            print(h.shape)
             h = torch.sum(h, dim=[2, 3])
+
+            print(h.shape)
 
             if self.conditional_strategy == 'no':
                 authen_output = torch.squeeze(self.linear1(h))
