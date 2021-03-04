@@ -141,11 +141,12 @@ class DiscBlock(nn.Module):
         x = self.conv0(x)
         if self.d_spectral_norm is False:
             x = self.bn0(x)
-        x = self.activation(x)
-        x = self.conv1(x)
-        if self.d_spectral_norm is False:
-            x = self.bn1(x)
         out = self.activation(x)
+        #x = self.activation(x)
+        #x = self.conv1(x)
+        #if self.d_spectral_norm is False:
+        #    x = self.bn1(x)
+        #out = self.activation(x)
         return out
 
 
