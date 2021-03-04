@@ -120,7 +120,7 @@ class DiscBlock(nn.Module):
             self.conv0 = snconv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1)
             #self.conv1 = snconv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=4, stride=2, padding=1)
         else:
-            self.conv0 = conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1)
+            self.conv0 = conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=4, stride=2, padding=1)
             #self.conv1 = conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=4, stride=2, padding=1)
 
             self.bn0 = batchnorm_2d(in_features=out_channels)
