@@ -428,7 +428,13 @@ class Train_Eval(object):
                         self.scaler.scale(dis_acml_loss).backward()
                     else:
                         dis_acml_loss.backward()
-
+                if self.dis_masks is not None:
+                    for k, m in enumerate(self.dis_model.modules()):
+                        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                            try:
+                                m.weight_orig.grad.mul_(self.dis_masks[k])
+                            except:
+                                m.weight.grad.mul_(self.dis_masks[k])
                 if self.mixed_precision:
                     self.scaler.step(self.D_optimizer)
                     self.scaler.update()
