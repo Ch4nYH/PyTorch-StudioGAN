@@ -393,7 +393,8 @@ def load_frameowrk(seed, gamma, steps, disable_debugging_API, num_workers, confi
         Gen, gen_masks = pruning_generate_sn(Gen, 0.2, initial_G_weight, parallel)
         if ema:
             Gen_copy, _ = pruning_generate_sn(Gen_copy, 0.2, initial_G_weight, parallel)
-        Dis.load_state_dict(initial_D_weight)
+            
+        Dis, dis_masks = pruning_generate_sn(Dis, 0.2, initial_D_weight, parallel)
         
         if ema:
             Gen_ema = ema_(Gen, Gen_copy, ema_decay, ema_start)
