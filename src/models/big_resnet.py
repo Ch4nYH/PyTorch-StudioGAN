@@ -413,6 +413,8 @@ class Discriminator(nn.Module):
                 h = self.activation(h)
                 h = torch.sum(h, dim=[2,3])
 
+
+            h = torch.nn.functional.dropout(h, 0.5)
             if fc:
                 if self.conditional_strategy == 'no':
                     authen_output = torch.squeeze(self.linear1(h))
