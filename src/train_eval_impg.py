@@ -952,5 +952,6 @@ def PGD_G(x, gen_labels, label, loss, gen_model, dis_model, steps=1, gamma=0.1, 
 
         if clip:
             linfball_proj(x, eps, x_adv, in_place=True)
-
+    import pickle
+    pickle.dump(x_adv.data - x.data, open('noise.pkl', 'wb'))
     return x_adv
